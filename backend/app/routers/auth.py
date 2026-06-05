@@ -11,8 +11,12 @@ from app.models.doctor import Doctor
 from app.schemas.doctor import DoctorSignup
 from app.schemas.doctor import DoctorLogin
 
+from app.dependencies import get_current_doctor
+from fastapi import Depends
+
 from app.security import hash_password
 from app.security import verify_password
+from app.security import create_access_token
 
 
 router = APIRouter(
@@ -96,7 +100,26 @@ def login(
             detail="Invalid credentials"
         )
 
+    access_token = create_access_token(
+        {
+            "doctor_id": db_doctor.id,
+            "email": db_doctor.email
+        }
+    )
+
     return {
-        "message": "Login successful",
-        "doctor_id": db_doctor.id
+        "access_token": access_token,
+        "token_type": "bearer"
+    }
+
+@router.get("/me")
+def get_me(
+    current_doctor: dict = Depends(
+        get_current_doctor
+    )
+):
+
+    return {
+        "doctor_id": current_doctor["doctor_id"],
+        "email": current_doctor["email"]
     }

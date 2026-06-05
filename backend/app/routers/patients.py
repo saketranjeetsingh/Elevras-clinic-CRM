@@ -4,6 +4,7 @@ from fastapi import HTTPException
 
 from sqlalchemy.orm import Session
 
+from app.dependencies import get_current_doctor
 from app.database import SessionLocal
 from app.models.patient import Patient
 from app.models.treatment import Treatment
@@ -32,6 +33,9 @@ def get_db():
 @router.post("/")
 def create_patient(
     patient: PatientCreate,
+    current_doctor: dict = Depends(
+        get_current_doctor
+    ),
     db: Session = Depends(get_db)
 ):
 
@@ -56,8 +60,12 @@ def create_patient(
 
 @router.get("/")
 def get_patients(
+    current_doctor: dict = Depends(
+        get_current_doctor
+    ),
     db: Session = Depends(get_db)
 ):
+
     return db.query(Patient).all()
 
 
