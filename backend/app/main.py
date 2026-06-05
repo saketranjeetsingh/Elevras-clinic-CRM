@@ -18,6 +18,10 @@ from app.routers.treatments import router as treatment_router
 from app.routers.bills import router as bill_router
 from app.routers.dashboard import router as dashboard_router
 
+
+from app.models.doctor import Doctor
+from app.routers.auth import router as auth_router
+
 with engine.connect() as conn:
     result = conn.execute(text("SELECT current_database()"))
     print("DATABASE:", result.scalar())
@@ -33,6 +37,7 @@ app.include_router(appointment_router)
 app.include_router(treatment_router)
 app.include_router(bill_router)
 app.include_router(dashboard_router)
+app.include_router(auth_router)
 
 @app.get("/")
 def home():
