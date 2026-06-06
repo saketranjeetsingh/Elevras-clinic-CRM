@@ -39,15 +39,16 @@ def create_patient(
     db: Session = Depends(get_db)
 ):
 
-    new_patient = Patient(
-        name=patient.name,
-        phone=patient.phone,
-        email=patient.email,
-        age=patient.age,
-        gender=patient.gender,
-        notes=patient.notes,
-        last_treatment=patient.last_treatment
-    )
+   new_patient = Patient(
+    doctor_id=current_doctor["doctor_id"],
+    name=patient.name,
+    phone=patient.phone,
+    email=patient.email,
+    age=patient.age,
+    gender=patient.gender,
+    notes=patient.notes,
+    last_treatment=patient.last_treatment
+)
 
     db.add(new_patient)
 
@@ -66,7 +67,9 @@ def get_patients(
     db: Session = Depends(get_db)
 ):
 
-    return db.query(Patient).all()
+    return db.query(Patient).filter(
+    Patient.doctor_id == current_doctor["doctor_id"]
+).all()
 
 
 @router.get("/{patient_id}/treatments")
@@ -89,8 +92,13 @@ def search_patient(
 ):
 
     patient = db.query(Patient).filter(
-        Patient.phone == phone
-    ).first()
+    Patient.phone == phone,
+    Patient.doctor_id == current_doctor["doctor_id"]
+).first()
+    
+    current_doctor: dict = Depends(
+    get_current_doctor
+),
 
     return patient
 
@@ -102,8 +110,13 @@ def get_patient(
 ):
 
     patient = db.query(Patient).filter(
-        Patient.id == patient_id
-    ).first()
+    Patient.id == patient_id,
+    Patient.doctor_id == current_doctor["doctor_id"]
+).first()
+    
+    current_doctor: dict = Depends(
+    get_current_doctor
+),
 
     if not patient:
         raise HTTPException(
@@ -122,8 +135,13 @@ def update_patient(
 ):
 
     patient = db.query(Patient).filter(
-        Patient.id == patient_id
-    ).first()
+    Patient.id == patient_id,
+    Patient.doctor_id == current_doctor["doctor_id"]
+).first()
+    
+    current_doctor: dict = Depends(
+    get_current_doctor
+),
 
     if not patient:
         raise HTTPException(
@@ -165,8 +183,13 @@ def delete_patient(
 ):
 
     patient = db.query(Patient).filter(
-        Patient.id == patient_id
-    ).first()
+    Patient.id == patient_id,
+    Patient.doctor_id == current_doctor["doctor_id"]
+).first()
+    
+    current_doctor: dict = Depends(
+    get_current_doctor
+),
 
     if not patient:
         raise HTTPException(
@@ -189,8 +212,13 @@ def search_patient_by_phone(
 ):
 
     patient = db.query(Patient).filter(
-        Patient.phone == phone
-    ).first()
+    Patient.phone == phone,
+    Patient.doctor_id == current_doctor["doctor_id"]
+).first()
+    
+    current_doctor: dict = Depends(
+    get_current_doctor
+),
 
     if not patient:
         raise HTTPException(
@@ -208,7 +236,12 @@ def search_patient_by_name(
 ):
 
     patients = db.query(Patient).filter(
-        Patient.name.ilike(f"%{name}%")
-    ).all()
+    Patient.name.ilike(f"%{name}%"),
+    Patient.doctor_id == current_doctor["doctor_id"]
+).all()
+    
+    current_doctor: dict = Depends(
+    get_current_doctor
+),
 
     return patients
