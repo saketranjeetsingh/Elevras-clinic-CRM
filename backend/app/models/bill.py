@@ -16,6 +16,10 @@ class Bill(Base):
         Integer,
         ForeignKey("patients.id")
     )
+    doctor_id = Column(
+    Integer,
+    ForeignKey("doctors.id")
+)
 
     amount = Column(Integer)
 

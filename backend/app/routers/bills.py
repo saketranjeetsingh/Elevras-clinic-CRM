@@ -7,6 +7,8 @@ from app.database import SessionLocal
 from app.models.bill import Bill
 from app.schemas.bill import BillCreate
 
+from app.dependencies import get_current_doctor
+
 
 router = APIRouter(
     prefix="/bills",
@@ -28,10 +30,14 @@ def get_db():
 @router.post("/")
 def create_bill(
     bill: BillCreate,
+    current_doctor: dict = Depends(
+        get_current_doctor
+    ),
     db: Session = Depends(get_db)
 ):
 
     new_bill = Bill(
+        doctor_id=current_doctor["doctor_id"],
         patient_id=bill.patient_id,
         amount=bill.amount,
         payment_status=bill.payment_status,
@@ -49,7 +55,13 @@ def create_bill(
 
 @router.get("/")
 def get_bills(
+    current_doctor: dict = Depends(
+        get_current_doctor
+    ),
     db: Session = Depends(get_db)
 ):
 
-    return db.query(Bill).all()
+    return db.query(Bill).filter(
+        Bill.doctor_id ==
+        current_doctor["doctor_id"]
+    ).all()

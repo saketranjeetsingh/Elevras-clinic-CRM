@@ -9,6 +9,8 @@ from app.models.treatment import Treatment
 
 from app.schemas.treatment import TreatmentCreate
 
+from app.dependencies import get_current_doctor
+
 
 router = APIRouter(
     prefix="/treatments",
@@ -30,10 +32,14 @@ def get_db():
 @router.post("/")
 def create_treatment(
     treatment: TreatmentCreate,
+    current_doctor: dict = Depends(
+        get_current_doctor
+    ),
     db: Session = Depends(get_db)
 ):
 
     new_treatment = Treatment(
+        doctor_id=current_doctor["doctor_id"],
         patient_id=treatment.patient_id,
         treatment_name=treatment.treatment_name,
         cost=treatment.cost,
@@ -52,9 +58,13 @@ def create_treatment(
 
 @router.get("/")
 def get_treatments(
+    current_doctor: dict = Depends(
+        get_current_doctor
+    ),
     db: Session = Depends(get_db)
 ):
 
-    return db.query(Treatment).all()
-
-    
+    return db.query(Treatment).filter(
+        Treatment.doctor_id ==
+        current_doctor["doctor_id"]
+    ).all()

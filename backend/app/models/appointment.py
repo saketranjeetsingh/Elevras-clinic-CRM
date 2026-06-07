@@ -16,6 +16,10 @@ class Appointment(Base):
         Integer,
         ForeignKey("patients.id")
     )
+    doctor_id = Column(
+    Integer,
+    ForeignKey("doctors.id")
+)
 
     doctor_name = Column(String)
 

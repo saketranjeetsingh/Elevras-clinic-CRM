@@ -16,6 +16,10 @@ class Treatment(Base):
         Integer,
         ForeignKey("patients.id")
     )
+    doctor_id = Column(
+    Integer,
+    ForeignKey("doctors.id")
+)
 
     treatment_name = Column(String, nullable=False)
 
