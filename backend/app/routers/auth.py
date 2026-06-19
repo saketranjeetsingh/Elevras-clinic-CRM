@@ -8,7 +8,7 @@ from app.database import SessionLocal
 
 from app.models.doctor import Doctor
 
-from app.schemas.doctor import DoctorSignup
+from app.schemas.doctor import DoctorSignup 
 from app.schemas.doctor import DoctorLogin
 
 from app.dependencies import get_current_doctor
