@@ -20,4 +20,41 @@ api.interceptors.request.use(
     }   
 );
 
+// Small wrappers for consistent error handling in pages
+export async function get(path, params) {
+    try {
+        const res = await api.get(path, { params });
+        return res.data;
+    } catch (err) {
+        throw err.response?.data || err;
+    }
+}
+
+export async function post(path, data) {
+    try {
+        const res = await api.post(path, data);
+        return res.data;
+    } catch (err) {
+        throw err.response?.data || err;
+    }
+}
+
+export async function put(path, data) {
+    try {
+        const res = await api.put(path, data);
+        return res.data;
+    } catch (err) {
+        throw err.response?.data || err;
+    }
+}
+
+export async function del(path) {
+    try {
+        const res = await api.delete(path);
+        return res.data;
+    } catch (err) {
+        throw err.response?.data || err;
+    }
+}
+
 export default api;
