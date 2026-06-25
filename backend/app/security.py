@@ -1,13 +1,25 @@
+import os
 from datetime import datetime
 from datetime import timedelta
 
 from jose import jwt
 from jose import JWTError
+from dotenv import load_dotenv
 
 from passlib.context import CryptContext
 
 
-SECRET_KEY = "elevras-super-secret-key"
+# Load environment (backend/.env) and read SECRET_KEY
+base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+dotenv_path = os.path.join(base_dir, ".env")
+load_dotenv(dotenv_path)
+
+SECRET_KEY = os.environ.get("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError(
+        "SECRET_KEY environment variable not set. Create a backend/.env file or set the environment variable."
+        " See backend/.env.example for the expected format."
+    )
 
 ALGORITHM = "HS256"
 

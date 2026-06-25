@@ -71,11 +71,13 @@ def get_patients(
 @router.get("/{patient_id}/treatments")
 def get_patient_treatments(
     patient_id: int,
+    current_doctor: dict = Depends(get_current_doctor),
     db: Session = Depends(get_db)
 ):
 
     treatments = db.query(Treatment).filter(
-        Treatment.patient_id == patient_id
+        Treatment.patient_id == patient_id,
+        Treatment.doctor_id == current_doctor["doctor_id"]
     ).all()
 
     return treatments

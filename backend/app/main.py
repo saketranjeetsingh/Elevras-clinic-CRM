@@ -5,6 +5,7 @@ from sqlalchemy import text
 
 from app.database import Base
 from app.database import engine
+import logging
 
 # Models
 from app.models.patient import Patient
@@ -22,14 +23,7 @@ from app.routers.dashboard import router as dashboard_router
 from app.routers.auth import router as auth_router
 
 
-with engine.connect() as conn:
-    result = conn.execute(
-        text("SELECT current_database()")
-    )
-    print(
-        "DATABASE:",
-        result.scalar()
-    )
+logger = logging.getLogger("uvicorn.error")
 
 
 app = FastAPI()
@@ -50,12 +44,27 @@ app.add_middleware(
 )
 
 
-# ---------------------------
-# Database
-# ---------------------------
-Base.metadata.create_all(
-    bind=engine
-)
+@app.on_event("startup")
+def startup_event():
+    """Attempt a DB connection at startup and create tables.
+
+    If the connection fails, raise a clear RuntimeError so the developer
+    sees an informative message (e.g. bad DATABASE_URL or Postgres not running).
+    """
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("SELECT current_database()"))
+            logger.info("DATABASE: %s", result.scalar())
+
+        # Create tables after successful connection
+        Base.metadata.create_all(bind=engine)
+
+    except Exception as exc:
+        # Provide a readable error message to help local development debugging
+        raise RuntimeError(
+            "Could not connect to Postgres — check DATABASE_URL and that Postgres is running. "
+            f"Original error: {exc}"
+        )
 
 
 # ---------------------------

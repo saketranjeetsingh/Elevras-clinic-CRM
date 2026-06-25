@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from app.database import SessionLocal
+from app.dependencies import get_current_doctor
 
 from app.models.patient import Patient
 from app.models.appointment import Appointment
@@ -31,20 +32,31 @@ def get_db():
 
 @router.get("/stats")
 def get_dashboard_stats(
+    current_doctor: dict = Depends(get_current_doctor),
     db: Session = Depends(get_db)
 ):
 
-    total_patients = db.query(Patient).count()
+    doctor_id = current_doctor["doctor_id"]
 
-    total_appointments = db.query(Appointment).count()
+    total_patients = db.query(Patient).filter(
+        Patient.doctor_id == doctor_id
+    ).count()
 
-    total_treatments = db.query(Treatment).count()
+    total_appointments = db.query(Appointment).filter(
+        Appointment.doctor_id == doctor_id
+    ).count()
 
-    total_bills = db.query(Bill).count()
+    total_treatments = db.query(Treatment).filter(
+        Treatment.doctor_id == doctor_id
+    ).count()
+
+    total_bills = db.query(Bill).filter(
+        Bill.doctor_id == doctor_id
+    ).count()
 
     total_revenue = db.query(
         func.sum(Bill.amount)
-    ).scalar()
+    ).filter(Bill.doctor_id == doctor_id).scalar()
 
     if total_revenue is None:
         total_revenue = 0
