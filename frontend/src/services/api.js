@@ -39,9 +39,9 @@ export async function post(path, data) {
     }
 }
 
-export async function put(path, data) {
+export async function put(path, data, params) {
     try {
-        const res = await api.put(path, data);
+        const res = await api.put(path, data, { params });
         return res.data;
     } catch (err) {
         throw err.response?.data || err;

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { get, post } from "../services/api";
+import { get, post, put, del } from "../services/api";
 
 function Patients() {
     const [patients, setPatients] = useState([]);
@@ -15,6 +15,10 @@ function Patients() {
         notes: "",
         last_treatment: "",
     });
+    const [editingId, setEditingId] = useState(null);
+    const [success, setSuccess] = useState(null);
+    const [searchName, setSearchName] = useState("");
+    const [searchPhone, setSearchPhone] = useState("");
 
     const fetchPatients = async () => {
         setLoading(true);
@@ -41,15 +45,33 @@ function Patients() {
     const handleCreate = async (e) => {
         e.preventDefault();
         try {
-            await post("/patients", {
-                name: form.name,
-                phone: form.phone,
-                email: form.email,
-                age: Number(form.age) || 0,
-                gender: form.gender,
-                notes: form.notes,
-                last_treatment: form.last_treatment,
-            });
+            if (editingId) {
+                // update
+                await put(`/patients/${editingId}`, {
+                    name: form.name,
+                    phone: form.phone,
+                    email: form.email,
+                    age: Number(form.age) || 0,
+                    gender: form.gender,
+                    notes: form.notes,
+                    last_treatment: form.last_treatment,
+                });
+
+                setSuccess("Patient updated successfully");
+                setEditingId(null);
+            } else {
+                await post("/patients", {
+                    name: form.name,
+                    phone: form.phone,
+                    email: form.email,
+                    age: Number(form.age) || 0,
+                    gender: form.gender,
+                    notes: form.notes,
+                    last_treatment: form.last_treatment,
+                });
+
+                setSuccess("Patient created successfully");
+            }
 
             setForm({
                 name: "",
@@ -63,7 +85,61 @@ function Patients() {
 
             fetchPatients();
         } catch (err) {
-            alert("Failed to create patient: " + (err?.detail || err?.message || JSON.stringify(err)));
+            setSuccess(null);
+            setError(err?.detail || err?.message || JSON.stringify(err));
+        }
+    };
+
+    const handleEdit = (patient) => {
+        setEditingId(patient.id);
+        setForm({
+            name: patient.name || "",
+            phone: patient.phone || "",
+            email: patient.email || "",
+            age: patient.age || "",
+            gender: patient.gender || "",
+            notes: patient.notes || "",
+            last_treatment: patient.last_treatment || "",
+        });
+        setSuccess(null);
+    };
+
+    const handleDelete = async (id) => {
+        if (!window.confirm("Delete patient?")) return;
+        try {
+            await del(`/patients/${id}`);
+            setSuccess("Patient deleted successfully");
+            fetchPatients();
+        } catch (err) {
+            setError(err?.detail || err?.message || JSON.stringify(err));
+        }
+    };
+
+    const handleSearchByName = async () => {
+        if (!searchName) return fetchPatients();
+        setLoading(true);
+        setError(null);
+        try {
+            const data = await get(`/patients/search/name/${encodeURIComponent(searchName)}`);
+            setPatients(data || []);
+        } catch (err) {
+            setError(err?.detail || err?.message || JSON.stringify(err));
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSearchByPhone = async () => {
+        if (!searchPhone) return fetchPatients();
+        setLoading(true);
+        setError(null);
+        try {
+            const data = await get(`/patients/search/phone/${encodeURIComponent(searchPhone)}`);
+            setPatients(data ? [data] : []);
+        } catch (err) {
+            setError(err?.detail || err?.message || JSON.stringify(err));
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -78,8 +154,19 @@ function Patients() {
                 <input name="age" placeholder="Age" value={form.age} onChange={handleChange} />
                 <input name="gender" placeholder="Gender" value={form.gender} onChange={handleChange} />
                 <input name="last_treatment" placeholder="Last Treatment" value={form.last_treatment} onChange={handleChange} />
-                <button className="btn" type="submit">Create</button>
+                <button className="btn" type="submit">{editingId ? "Save" : "Create"}</button>
+                {editingId && <button type="button" className="btn" onClick={() => { setEditingId(null); setForm({ name: "", phone: "", email: "", age: "", gender: "", notes: "", last_treatment: "" }); }}>Cancel</button>}
             </form>
+
+            <div style={{ marginBottom: 12 }}>
+                <input placeholder="Search name" value={searchName} onChange={(e) => setSearchName(e.target.value)} />
+                <button className="btn" onClick={handleSearchByName}>Search Name</button>
+                <input placeholder="Search phone" value={searchPhone} onChange={(e) => setSearchPhone(e.target.value)} style={{ marginLeft: 8 }} />
+                <button className="btn" onClick={handleSearchByPhone}>Search Phone</button>
+                <button className="btn" onClick={fetchPatients} style={{ marginLeft: 8 }}>Clear</button>
+            </div>
+
+            {success && <p className="success">{success}</p>}
 
             {loading && <p>Loading patients...</p>}
             {error && <p className="error">Error: {error}</p>}
@@ -106,6 +193,10 @@ function Patients() {
                             <td>{p.age}</td>
                             <td>{p.gender}</td>
                             <td>{p.last_treatment}</td>
+                            <td>
+                                <button className="btn" onClick={() => handleEdit(p)}>Edit</button>
+                                <button className="btn" onClick={() => handleDelete(p.id)} style={{ marginLeft: 6 }}>Delete</button>
+                            </td>
                         </tr>
                     ))}
                 </tbody>

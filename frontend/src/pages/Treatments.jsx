@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { get, post } from "../services/api";
+import { get, post, put } from "../services/api";
 
 function Treatments() {
     const [treatments, setTreatments] = useState([]);
@@ -54,6 +54,17 @@ function Treatments() {
         }
     };
 
+    const handleUpdateStatus = async (t) => {
+        const newStatus = window.prompt("New status", t.status || "");
+        if (!newStatus) return;
+        try {
+            await put(`/treatments/${t.id}`, null, { status: newStatus });
+            fetchTreatments();
+        } catch (err) {
+            alert("Failed to update status: " + (err?.detail || err?.message || JSON.stringify(err)));
+        }
+    };
+
     return (
         <div className="page">
             <h1>Treatments</h1>
@@ -88,7 +99,10 @@ function Treatments() {
                             <td>{t.patient_id}</td>
                             <td>{t.treatment_name}</td>
                             <td>{t.cost}</td>
-                            <td>{t.status}</td>
+                            <td>
+                                {t.status}
+                                <button className="btn" onClick={() => handleUpdateStatus(t)} style={{ marginLeft: 6 }}>Update</button>
+                            </td>
                             <td>{t.notes}</td>
                         </tr>
                     ))}

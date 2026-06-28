@@ -65,3 +65,32 @@ def get_bills(
         Bill.doctor_id ==
         current_doctor["doctor_id"]
     ).all()
+
+
+@router.put("/{bill_id}")
+def update_bill_status(
+    bill_id: int,
+    payment_status: str,
+    current_doctor: dict = Depends(
+        get_current_doctor
+    ),
+    db: Session = Depends(get_db)
+):
+
+    bill = db.query(Bill).filter(
+        Bill.id == bill_id,
+        Bill.doctor_id == current_doctor["doctor_id"]
+    ).first()
+
+    if not bill:
+        return {
+            "message": "Bill not found"
+        }
+
+    bill.payment_status = payment_status
+
+    db.commit()
+
+    db.refresh(bill)
+
+    return bill

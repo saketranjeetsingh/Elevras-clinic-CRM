@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { get, post } from "../services/api";
+import { get, post, put } from "../services/api";
 
 function Bills() {
     const [bills, setBills] = useState([]);
@@ -52,6 +52,17 @@ function Bills() {
         }
     };
 
+    const handleUpdatePaymentStatus = async (b) => {
+        const newStatus = window.prompt("New payment status", b.payment_status || "");
+        if (!newStatus) return;
+        try {
+            await put(`/bills/${b.id}`, null, { payment_status: newStatus });
+            fetchBills();
+        } catch (err) {
+            alert("Failed to update payment status: " + (err?.detail || err?.message || JSON.stringify(err)));
+        }
+    };
+
     return (
         <div className="page">
             <h1>Bills</h1>
@@ -83,7 +94,10 @@ function Bills() {
                             <td>{b.id}</td>
                             <td>{b.patient_id}</td>
                             <td>{b.amount}</td>
-                            <td>{b.payment_status}</td>
+                            <td>
+                                {b.payment_status}
+                                <button className="btn" onClick={() => handleUpdatePaymentStatus(b)} style={{ marginLeft: 6 }}>Update</button>
+                            </td>
                             <td>{b.payment_method}</td>
                         </tr>
                     ))}

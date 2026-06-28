@@ -68,3 +68,32 @@ def get_treatments(
         Treatment.doctor_id ==
         current_doctor["doctor_id"]
     ).all()
+
+
+@router.put("/{treatment_id}")
+def update_treatment_status(
+    treatment_id: int,
+    status: str,
+    current_doctor: dict = Depends(
+        get_current_doctor
+    ),
+    db: Session = Depends(get_db)
+):
+
+    treatment = db.query(Treatment).filter(
+        Treatment.id == treatment_id,
+        Treatment.doctor_id == current_doctor["doctor_id"]
+    ).first()
+
+    if not treatment:
+        return {
+            "message": "Treatment not found"
+        }
+
+    treatment.status = status
+
+    db.commit()
+
+    db.refresh(treatment)
+
+    return treatment
