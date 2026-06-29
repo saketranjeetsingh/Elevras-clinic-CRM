@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 from fastapi import Depends
+from fastapi import HTTPException
 
 from sqlalchemy.orm import Session
 
@@ -83,9 +84,10 @@ def update_bill_status(
     ).first()
 
     if not bill:
-        return {
-            "message": "Bill not found"
-        }
+        raise HTTPException(
+            status_code=404,
+            detail="Bill not found"
+        )
 
     bill.payment_status = payment_status
 

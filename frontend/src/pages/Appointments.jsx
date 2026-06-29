@@ -3,14 +3,16 @@ import { get, post, put } from "../services/api";
 
 function Appointments() {
     const [appointments, setAppointments] = useState([]);
+    const [patients, setPatients] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [success, setSuccess] = useState(null);
 
     const [form, setForm] = useState({
         patient_id: "",
         doctor_name: "",
         appointment_date: "",
-        status: "",
+        status: "Scheduled",
         notes: "",
     });
 
@@ -18,8 +20,12 @@ function Appointments() {
         setLoading(true);
         setError(null);
         try {
-            const data = await get("/appointments");
-            setAppointments(data || []);
+            const [appointmentsData, patientsData] = await Promise.all([
+                get("/appointments"),
+                get("/patients"),
+            ]);
+            setAppointments(appointmentsData || []);
+            setPatients(patientsData || []);
         } catch (err) {
             setError(err?.detail || err?.message || JSON.stringify(err));
         } finally {
@@ -38,6 +44,9 @@ function Appointments() {
 
     const handleCreate = async (e) => {
         e.preventDefault();
+        setError(null);
+        setSuccess(null);
+
         try {
             await post("/appointments", {
                 patient_id: Number(form.patient_id),
@@ -47,21 +56,23 @@ function Appointments() {
                 notes: form.notes,
             });
 
-            setForm({ patient_id: "", doctor_name: "", appointment_date: "", status: "", notes: "" });
-            fetchAppointments();
+            setForm({ patient_id: "", doctor_name: "", appointment_date: "", status: "Scheduled", notes: "" });
+            await fetchAppointments();
+            setSuccess("Appointment created successfully");
         } catch (err) {
-            alert("Failed to create appointment: " + (err?.detail || err?.message || JSON.stringify(err)));
+            setError(err?.detail || err?.message || JSON.stringify(err));
         }
     };
 
-    const handleUpdateStatus = async (a) => {
-        const newStatus = window.prompt("New status", a.status || "");
-        if (!newStatus) return;
+    const handleUpdateStatus = async (appointment, nextStatus) => {
+        setError(null);
+        setSuccess(null);
         try {
-            await put(`/appointments/${a.id}`, null, { status: newStatus });
-            fetchAppointments();
+            await put(`/appointments/${appointment.id}`, null, { status: nextStatus });
+            await fetchAppointments();
+            setSuccess("Appointment updated successfully");
         } catch (err) {
-            alert("Failed to update status: " + (err?.detail || err?.message || JSON.stringify(err)));
+            setError(err?.detail || err?.message || JSON.stringify(err));
         }
     };
 
@@ -70,14 +81,24 @@ function Appointments() {
             <h1>Appointments</h1>
 
             <form onSubmit={handleCreate} className="form-row" style={{ marginBottom: 12 }}>
-                <input name="patient_id" placeholder="Patient ID" value={form.patient_id} onChange={handleChange} />
+                <select name="patient_id" value={form.patient_id} onChange={handleChange}>
+                    <option value="">Select patient</option>
+                    {patients.map((patient) => (
+                        <option key={patient.id} value={patient.id}>{patient.name} ({patient.phone})</option>
+                    ))}
+                </select>
                 <input name="doctor_name" placeholder="Doctor Name" value={form.doctor_name} onChange={handleChange} />
                 <input name="appointment_date" placeholder="Date (YYYY-MM-DD)" value={form.appointment_date} onChange={handleChange} />
-                <input name="status" placeholder="Status" value={form.status} onChange={handleChange} />
+                <select name="status" value={form.status} onChange={handleChange}>
+                    <option value="Scheduled">Scheduled</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Cancelled">Cancelled</option>
+                </select>
                 <input name="notes" placeholder="Notes" value={form.notes} onChange={handleChange} />
                 <button className="btn" type="submit">Create</button>
             </form>
 
+            {success && <p className="success">{success}</p>}
             {loading && <p>Loading appointments...</p>}
             {error && <p className="error">Error: {error}</p>}
 
@@ -85,7 +106,7 @@ function Appointments() {
                 <thead>
                     <tr>
                         <th>ID</th>
-                        <th>Patient ID</th>
+                        <th>Patient</th>
                         <th>Doctor</th>
                         <th>Date</th>
                         <th>Status</th>
@@ -100,8 +121,11 @@ function Appointments() {
                             <td>{a.doctor_name}</td>
                             <td>{a.appointment_date}</td>
                             <td>
-                                {a.status}
-                                <button className="btn" onClick={() => handleUpdateStatus(a)} style={{ marginLeft: 6 }}>Update</button>
+                                <select value={a.status || "Scheduled"} onChange={(e) => handleUpdateStatus(a, e.target.value)}>
+                                    <option value="Scheduled">Scheduled</option>
+                                    <option value="Completed">Completed</option>
+                                    <option value="Cancelled">Cancelled</option>
+                                </select>
                             </td>
                             <td>{a.notes}</td>
                         </tr>

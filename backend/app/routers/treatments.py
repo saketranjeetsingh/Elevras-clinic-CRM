@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 from fastapi import Depends
+from fastapi import HTTPException
 
 from sqlalchemy.orm import Session
 
@@ -86,9 +87,10 @@ def update_treatment_status(
     ).first()
 
     if not treatment:
-        return {
-            "message": "Treatment not found"
-        }
+        raise HTTPException(
+            status_code=404,
+            detail="Treatment not found"
+        )
 
     treatment.status = status
 

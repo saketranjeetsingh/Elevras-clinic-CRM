@@ -3,14 +3,16 @@ import { get, post, put } from "../services/api";
 
 function Treatments() {
     const [treatments, setTreatments] = useState([]);
+    const [patients, setPatients] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [success, setSuccess] = useState(null);
 
     const [form, setForm] = useState({
         patient_id: "",
         treatment_name: "",
         cost: "",
-        status: "",
+        status: "Planned",
         notes: "",
     });
 
@@ -18,8 +20,12 @@ function Treatments() {
         setLoading(true);
         setError(null);
         try {
-            const data = await get("/treatments");
-            setTreatments(data || []);
+            const [treatmentsData, patientsData] = await Promise.all([
+                get("/treatments"),
+                get("/patients"),
+            ]);
+            setTreatments(treatmentsData || []);
+            setPatients(patientsData || []);
         } catch (err) {
             setError(err?.detail || err?.message || JSON.stringify(err));
         } finally {
@@ -38,6 +44,8 @@ function Treatments() {
 
     const handleCreate = async (e) => {
         e.preventDefault();
+        setError(null);
+        setSuccess(null);
         try {
             await post("/treatments", {
                 patient_id: Number(form.patient_id),
@@ -47,21 +55,23 @@ function Treatments() {
                 notes: form.notes,
             });
 
-            setForm({ patient_id: "", treatment_name: "", cost: "", status: "", notes: "" });
-            fetchTreatments();
+            setForm({ patient_id: "", treatment_name: "", cost: "", status: "Planned", notes: "" });
+            await fetchTreatments();
+            setSuccess("Treatment created successfully");
         } catch (err) {
-            alert("Failed to create treatment: " + (err?.detail || err?.message || JSON.stringify(err)));
+            setError(err?.detail || err?.message || JSON.stringify(err));
         }
     };
 
-    const handleUpdateStatus = async (t) => {
-        const newStatus = window.prompt("New status", t.status || "");
-        if (!newStatus) return;
+    const handleUpdateStatus = async (treatment, nextStatus) => {
+        setError(null);
+        setSuccess(null);
         try {
-            await put(`/treatments/${t.id}`, null, { status: newStatus });
-            fetchTreatments();
+            await put(`/treatments/${treatment.id}`, null, { status: nextStatus });
+            await fetchTreatments();
+            setSuccess("Treatment updated successfully");
         } catch (err) {
-            alert("Failed to update status: " + (err?.detail || err?.message || JSON.stringify(err)));
+            setError(err?.detail || err?.message || JSON.stringify(err));
         }
     };
 
@@ -70,14 +80,24 @@ function Treatments() {
             <h1>Treatments</h1>
 
             <form onSubmit={handleCreate} className="form-row" style={{ marginBottom: 12 }}>
-                <input name="patient_id" placeholder="Patient ID" value={form.patient_id} onChange={handleChange} />
+                <select name="patient_id" value={form.patient_id} onChange={handleChange}>
+                    <option value="">Select patient</option>
+                    {patients.map((patient) => (
+                        <option key={patient.id} value={patient.id}>{patient.name} ({patient.phone})</option>
+                    ))}
+                </select>
                 <input name="treatment_name" placeholder="Treatment" value={form.treatment_name} onChange={handleChange} />
                 <input name="cost" placeholder="Cost" value={form.cost} onChange={handleChange} />
-                <input name="status" placeholder="Status" value={form.status} onChange={handleChange} />
+                <select name="status" value={form.status} onChange={handleChange}>
+                    <option value="Planned">Planned</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Completed">Completed</option>
+                </select>
                 <input name="notes" placeholder="Notes" value={form.notes} onChange={handleChange} />
                 <button className="btn" type="submit">Create</button>
             </form>
 
+            {success && <p className="success">{success}</p>}
             {loading && <p>Loading treatments...</p>}
             {error && <p className="error">Error: {error}</p>}
 
@@ -85,7 +105,7 @@ function Treatments() {
                 <thead>
                     <tr>
                         <th>ID</th>
-                        <th>Patient ID</th>
+                        <th>Patient</th>
                         <th>Treatment</th>
                         <th>Cost</th>
                         <th>Status</th>
@@ -100,8 +120,11 @@ function Treatments() {
                             <td>{t.treatment_name}</td>
                             <td>{t.cost}</td>
                             <td>
-                                {t.status}
-                                <button className="btn" onClick={() => handleUpdateStatus(t)} style={{ marginLeft: 6 }}>Update</button>
+                                <select value={t.status || "Planned"} onChange={(e) => handleUpdateStatus(t, e.target.value)}>
+                                    <option value="Planned">Planned</option>
+                                    <option value="In Progress">In Progress</option>
+                                    <option value="Completed">Completed</option>
+                                </select>
                             </td>
                             <td>{t.notes}</td>
                         </tr>

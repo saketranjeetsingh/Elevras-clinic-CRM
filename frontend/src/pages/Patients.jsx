@@ -44,9 +44,11 @@ function Patients() {
 
     const handleCreate = async (e) => {
         e.preventDefault();
+        setError(null);
+        setSuccess(null);
+
         try {
             if (editingId) {
-                // update
                 await put(`/patients/${editingId}`, {
                     name: form.name,
                     phone: form.phone,
@@ -83,7 +85,7 @@ function Patients() {
                 last_treatment: "",
             });
 
-            fetchPatients();
+            await fetchPatients();
         } catch (err) {
             setSuccess(null);
             setError(err?.detail || err?.message || JSON.stringify(err));
@@ -102,14 +104,18 @@ function Patients() {
             last_treatment: patient.last_treatment || "",
         });
         setSuccess(null);
+        setError(null);
     };
 
     const handleDelete = async (id) => {
         if (!window.confirm("Delete patient?")) return;
+        setError(null);
+        setSuccess(null);
+
         try {
             await del(`/patients/${id}`);
             setSuccess("Patient deleted successfully");
-            fetchPatients();
+            await fetchPatients();
         } catch (err) {
             setError(err?.detail || err?.message || JSON.stringify(err));
         }
@@ -153,6 +159,7 @@ function Patients() {
                 <input name="email" placeholder="Email" value={form.email} onChange={handleChange} />
                 <input name="age" placeholder="Age" value={form.age} onChange={handleChange} />
                 <input name="gender" placeholder="Gender" value={form.gender} onChange={handleChange} />
+                <input name="notes" placeholder="Notes" value={form.notes} onChange={handleChange} />
                 <input name="last_treatment" placeholder="Last Treatment" value={form.last_treatment} onChange={handleChange} />
                 <button className="btn" type="submit">{editingId ? "Save" : "Create"}</button>
                 {editingId && <button type="button" className="btn" onClick={() => { setEditingId(null); setForm({ name: "", phone: "", email: "", age: "", gender: "", notes: "", last_treatment: "" }); }}>Cancel</button>}
@@ -206,4 +213,3 @@ function Patients() {
 }
 
 export default Patients;
-

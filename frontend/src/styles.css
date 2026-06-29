@@ -50,6 +50,7 @@ thead th{background:#f8fafc}
 
 .loading{padding:20px}
 .error{color:#b91c1c}
+.success{color:#166534}
 
 @media (max-width:700px){
     .app-layout{flex-direction:column}

@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 from fastapi import Depends
+from fastapi import HTTPException
 
 from sqlalchemy.orm import Session
 
@@ -84,9 +85,10 @@ def update_appointment_status(
     ).first()
 
     if not appointment:
-        return {
-            "message": "Appointment not found"
-        }
+        raise HTTPException(
+            status_code=404,
+            detail="Appointment not found"
+        )
 
     appointment.status = status
 

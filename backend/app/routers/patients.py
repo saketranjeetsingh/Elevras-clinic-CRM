@@ -203,12 +203,6 @@ def search_patient_by_phone(
         Patient.doctor_id == current_doctor["doctor_id"]
     ).first()
 
-    if not patient:
-        raise HTTPException(
-            status_code=404,
-            detail="Patient not found"
-        )
-
     return patient
 
 

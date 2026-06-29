@@ -1,5 +1,5 @@
 import { useState, useContext } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { AuthContext } from "../contexts/AuthContext";
 
@@ -10,10 +10,12 @@ function Login() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
 
     const handleLogin = async (e) => {
         e.preventDefault();
         setLoading(true);
+        setError("");
 
         try {
             const response = await api.post("/auth/login", {
@@ -26,8 +28,8 @@ function Login() {
             await login(token);
 
             navigate("/dashboard");
-        } catch (error) {
-            alert("Invalid credentials");
+        } catch (err) {
+            setError(err?.detail || err?.message || "Invalid credentials");
         } finally {
             setLoading(false);
         }
@@ -56,6 +58,11 @@ function Login() {
                     {loading ? "Logging in..." : "Login"}
                 </button>
             </form>
+
+            {error && <p className="error">{error}</p>}
+            <p style={{ marginTop: 12 }}>
+                Need an account? <Link to="/signup">Create one</Link>
+            </p>
         </div>
     );
 }
