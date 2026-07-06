@@ -18,10 +18,13 @@ function Login() {
         setError("");
 
         try {
-            const response = await api.post("/auth/login", {
-                email,
-                password,
-            });
+            const response = await api.post(
+                "/auth/login",
+                new URLSearchParams({ username: email, password }),
+                {
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                }
+            );
 
             const token = response.data.access_token;
 

@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from sqlalchemy import text
+from sqlalchemy import inspect
 
 from app.database import Base
 from app.database import engine
@@ -26,6 +27,31 @@ from app.routers.auth import router as auth_router
 logger = logging.getLogger("uvicorn.error")
 
 
+def ensure_schema():
+    """Add missing columns to existing tables without dropping data."""
+    with engine.begin() as conn:
+        inspector = inspect(conn)
+        existing_tables = set(inspector.get_table_names())
+
+        for table_name, column_name in [
+            ("patients", "doctor_id"),
+            ("appointments", "doctor_id"),
+            ("treatments", "doctor_id"),
+            ("bills", "doctor_id"),
+        ]:
+            if table_name not in existing_tables:
+                continue
+
+            columns = {col["name"] for col in inspector.get_columns(table_name)}
+            if column_name not in columns:
+                conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS {column_name} INTEGER"))
+
+        conn.execute(text("UPDATE patients SET doctor_id = 1 WHERE doctor_id IS NULL"))
+        conn.execute(text("UPDATE appointments SET doctor_id = 1 WHERE doctor_id IS NULL"))
+        conn.execute(text("UPDATE treatments SET doctor_id = 1 WHERE doctor_id IS NULL"))
+        conn.execute(text("UPDATE bills SET doctor_id = 1 WHERE doctor_id IS NULL"))
+
+
 app = FastAPI()
 
 
@@ -34,10 +60,7 @@ app = FastAPI()
 # ---------------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173"
-    ],
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1):\d+",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -55,6 +78,8 @@ def startup_event():
         with engine.connect() as conn:
             result = conn.execute(text("SELECT current_database()"))
             logger.info("DATABASE: %s", result.scalar())
+
+        ensure_schema()
 
         # Create tables after successful connection
         Base.metadata.create_all(bind=engine)

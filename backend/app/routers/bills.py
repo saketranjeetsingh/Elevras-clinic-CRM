@@ -28,6 +28,7 @@ def get_db():
         db.close()
 
 
+@router.post("")
 @router.post("/")
 def create_bill(
     bill: BillCreate,
@@ -54,6 +55,7 @@ def create_bill(
     return new_bill
 
 
+@router.get("")
 @router.get("/")
 def get_bills(
     current_doctor: dict = Depends(

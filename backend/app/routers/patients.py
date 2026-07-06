@@ -2,10 +2,13 @@ from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import HTTPException
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_current_doctor
 from app.database import SessionLocal
+from app.models.appointment import Appointment
+from app.models.bill import Bill
 from app.models.patient import Patient
 from app.models.treatment import Treatment
 
@@ -30,12 +33,24 @@ def get_db():
         db.close()
 
 
+@router.post("")
 @router.post("/")
 def create_patient(
     patient: PatientCreate,
     current_doctor: dict = Depends(get_current_doctor),
     db: Session = Depends(get_db)
 ):
+
+    existing_patient = db.query(Patient).filter(
+        Patient.doctor_id == current_doctor["doctor_id"],
+        or_(Patient.phone == patient.phone, Patient.email == patient.email)
+    ).first()
+
+    if existing_patient:
+        raise HTTPException(
+            status_code=409,
+            detail="Patient already exists"
+        )
 
     new_patient = Patient(
         doctor_id=current_doctor["doctor_id"],
@@ -57,6 +72,7 @@ def create_patient(
     return new_patient
 
 
+@router.get("")
 @router.get("/")
 def get_patients(
     current_doctor: dict = Depends(get_current_doctor),
@@ -182,6 +198,18 @@ def delete_patient(
             status_code=404,
             detail="Patient not found"
         )
+
+    db.query(Appointment).filter(
+        Appointment.patient_id == patient_id
+    ).delete(synchronize_session=False)
+
+    db.query(Treatment).filter(
+        Treatment.patient_id == patient_id
+    ).delete(synchronize_session=False)
+
+    db.query(Bill).filter(
+        Bill.patient_id == patient_id
+    ).delete(synchronize_session=False)
 
     db.delete(patient)
     db.commit()

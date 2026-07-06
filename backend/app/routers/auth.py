@@ -2,14 +2,14 @@ from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import HTTPException
 
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
 
 from app.models.doctor import Doctor
 
-from app.schemas.doctor import DoctorSignup 
-from app.schemas.doctor import DoctorLogin
+from app.schemas.doctor import DoctorSignup
 
 from app.dependencies import get_current_doctor
 from fastapi import Depends
@@ -75,29 +75,36 @@ def signup(
 
 @router.post("/login")
 def login(
-    doctor: DoctorLogin,
+    form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):
 
+    email = form_data.username
+    password = form_data.password
+
+    if not email or not password:
+        raise HTTPException(
+            status_code=422,
+            detail="Validation failed"
+        )
+
     db_doctor = db.query(Doctor).filter(
-        Doctor.email == doctor.email
+        Doctor.email == email
     ).first()
 
     if not db_doctor:
-
         raise HTTPException(
             status_code=401,
-            detail="Invalid credentials"
+            detail="Invalid email"
         )
 
     if not verify_password(
-        doctor.password,
+        password,
         db_doctor.hashed_password
     ):
-
         raise HTTPException(
             status_code=401,
-            detail="Invalid credentials"
+            detail="Invalid password"
         )
 
     access_token = create_access_token(

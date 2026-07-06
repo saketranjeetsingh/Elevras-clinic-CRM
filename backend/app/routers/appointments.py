@@ -27,6 +27,7 @@ def get_db():
         db.close()
 
 
+@router.post("")
 @router.post("/")
 def create_appointment(
     appointment: AppointmentCreate,
@@ -54,6 +55,7 @@ def create_appointment(
     return new_appointment
 
 
+@router.get("")
 @router.get("/")
 def get_appointments(
     current_doctor: dict = Depends(

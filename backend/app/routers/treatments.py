@@ -30,6 +30,7 @@ def get_db():
         db.close()
 
 
+@router.post("")
 @router.post("/")
 def create_treatment(
     treatment: TreatmentCreate,
@@ -57,6 +58,7 @@ def create_treatment(
     return new_treatment
 
 
+@router.get("")
 @router.get("/")
 def get_treatments(
     current_doctor: dict = Depends(
