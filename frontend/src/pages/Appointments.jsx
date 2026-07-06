@@ -27,7 +27,7 @@ function Appointments() {
             setAppointments(appointmentsData || []);
             setPatients(patientsData || []);
         } catch (err) {
-            setError(err?.detail || err?.message || JSON.stringify(err));
+            setError(err?.detail || err?.message || "We could not load appointments right now.");
         } finally {
             setLoading(false);
         }
@@ -60,7 +60,7 @@ function Appointments() {
             await fetchAppointments();
             setSuccess("Appointment created successfully");
         } catch (err) {
-            setError(err?.detail || err?.message || JSON.stringify(err));
+            setError(err?.detail || err?.message || "We could not save the appointment.");
         }
     };
 
@@ -72,7 +72,7 @@ function Appointments() {
             await fetchAppointments();
             setSuccess("Appointment updated successfully");
         } catch (err) {
-            setError(err?.detail || err?.message || JSON.stringify(err));
+            setError(err?.detail || err?.message || "We could not update the appointment.");
         }
     };
 
@@ -88,7 +88,7 @@ function Appointments() {
                     ))}
                 </select>
                 <input name="doctor_name" placeholder="Doctor Name" value={form.doctor_name} onChange={handleChange} />
-                <input name="appointment_date" placeholder="Date (YYYY-MM-DD)" value={form.appointment_date} onChange={handleChange} />
+                <input name="appointment_date" type="date" value={form.appointment_date} onChange={handleChange} />
                 <select name="status" value={form.status} onChange={handleChange}>
                     <option value="Scheduled">Scheduled</option>
                     <option value="Completed">Completed</option>
@@ -98,9 +98,9 @@ function Appointments() {
                 <button className="btn" type="submit">Create</button>
             </form>
 
-            {success && <p className="success">{success}</p>}
-            {loading && <p>Loading appointments...</p>}
-            {error && <p className="error">Error: {error}</p>}
+            {success && <p className="status-message success">{success}</p>}
+            {loading && <p className="status-message">Loading appointments...</p>}
+            {error && <p className="status-message error">{error}</p>}
 
             <table>
                 <thead>

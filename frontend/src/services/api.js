@@ -17,45 +17,34 @@ function normalizeError(error) {
 
     const status = error.response?.status;
     const serverDetail = error.response?.data?.detail || error.response?.data?.message;
+    const lowered = String(serverDetail || "").toLowerCase();
 
-    if (status === 401 || status === 403) {
-        return { detail: "Unauthorized.", message: "Unauthorized." };
+    if (status === 401 || status === 403 || lowered.includes("unauthorized") || lowered.includes("invalid credentials")) {
+        return { detail: "Incorrect email or password.", message: "Incorrect email or password." };
     }
 
-    if (status === 422) {
-        return { detail: "Validation failed.", message: "Validation failed." };
+    if (status === 422 || lowered.includes("validation failed")) {
+        return { detail: "Please check your details and try again.", message: "Please check your details and try again." };
     }
 
-    if (typeof serverDetail === "string") {
-        const lowered = serverDetail.toLowerCase();
+    if (lowered.includes("invalid email")) {
+        return { detail: "We could not find that email.", message: "We could not find that email." };
+    }
 
-        if (lowered.includes("already exists") || lowered.includes("already registered")) {
-            return { detail: serverDetail, message: serverDetail };
-        }
+    if (lowered.includes("invalid password")) {
+        return { detail: "Incorrect password.", message: "Incorrect password." };
+    }
 
-        if (lowered.includes("invalid email")) {
-            return { detail: "Invalid email.", message: "Invalid email." };
-        }
+    if (lowered.includes("already exists") || lowered.includes("already registered")) {
+        return { detail: "Email already exists.", message: "Email already exists." };
+    }
 
-        if (lowered.includes("invalid password")) {
-            return { detail: "Invalid password.", message: "Invalid password." };
-        }
-
-        if (lowered.includes("invalid credentials")) {
-            return { detail: "Unauthorized.", message: "Unauthorized." };
-        }
-
-        if (lowered.includes("validation failed")) {
-            return { detail: "Validation failed.", message: "Validation failed." };
-        }
-
-        if (lowered.includes("patient already exists")) {
-            return { detail: "Patient already exists.", message: "Patient already exists." };
-        }
+    if (lowered.includes("patient already exists")) {
+        return { detail: "Patient already exists.", message: "Patient already exists." };
     }
 
     if (status >= 500) {
-        return { detail: "Backend unavailable.", message: "Backend unavailable." };
+        return { detail: "Server unavailable.", message: "Server unavailable." };
     }
 
     return { detail: "Something went wrong. Please try again.", message: "Something went wrong. Please try again." };

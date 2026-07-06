@@ -1,8 +1,16 @@
 import { useEffect, useState } from "react";
 import { get } from "../services/api";
 
+const emptyStats = {
+    total_patients: 0,
+    total_appointments: 0,
+    total_treatments: 0,
+    total_bills: 0,
+    total_revenue: 0,
+};
+
 function Dashboard() {
-    const [stats, setStats] = useState(null);
+    const [stats, setStats] = useState(emptyStats);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
@@ -12,9 +20,13 @@ function Dashboard() {
             setError(null);
             try {
                 const data = await get("/dashboard/stats");
-                setStats(data);
+                setStats({
+                    ...emptyStats,
+                    ...(data || {}),
+                });
             } catch (err) {
-                setError(err?.detail || err?.message || JSON.stringify(err));
+                setStats(emptyStats);
+                setError(err?.detail || err?.message || "We could not load your dashboard right now.");
             } finally {
                 setLoading(false);
             }
@@ -27,37 +39,35 @@ function Dashboard() {
         <div className="page">
             <h1>Dashboard</h1>
 
-            {loading && <p>Loading...</p>}
-            {error && <p className="error">Error: {error}</p>}
+            {loading && <p className="status-message">Loading summary...</p>}
+            {error && <p className="status-message error">{error}</p>}
 
-            {stats && (
-                <div className="stats-grid">
-                    <div className="card">
-                        <h3>Total Patients</h3>
-                        <p>{stats.total_patients}</p>
-                    </div>
-
-                    <div className="card">
-                        <h3>Appointments</h3>
-                        <p>{stats.total_appointments}</p>
-                    </div>
-
-                    <div className="card">
-                        <h3>Treatments</h3>
-                        <p>{stats.total_treatments}</p>
-                    </div>
-
-                    <div className="card">
-                        <h3>Bills</h3>
-                        <p>{stats.total_bills}</p>
-                    </div>
-
-                    <div className="card">
-                        <h3>Total Revenue</h3>
-                        <p>${stats.total_revenue}</p>
-                    </div>
+            <div className="stats-grid">
+                <div className="card">
+                    <h3>Total Patients</h3>
+                    <p>{stats.total_patients}</p>
                 </div>
-            )}
+
+                <div className="card">
+                    <h3>Today's Appointments</h3>
+                    <p>{stats.total_appointments}</p>
+                </div>
+
+                <div className="card">
+                    <h3>Active Treatments</h3>
+                    <p>{stats.total_treatments}</p>
+                </div>
+
+                <div className="card">
+                    <h3>Pending Bills</h3>
+                    <p>{stats.total_bills}</p>
+                </div>
+
+                <div className="card">
+                    <h3>Revenue</h3>
+                    <p>${stats.total_revenue}</p>
+                </div>
+            </div>
         </div>
     );
 }
