@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from sqlalchemy import text
 from sqlalchemy import inspect
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.database import Base
 from app.database import engine
@@ -50,6 +51,38 @@ def ensure_schema():
         conn.execute(text("UPDATE appointments SET doctor_id = 1 WHERE doctor_id IS NULL"))
         conn.execute(text("UPDATE treatments SET doctor_id = 1 WHERE doctor_id IS NULL"))
         conn.execute(text("UPDATE bills SET doctor_id = 1 WHERE doctor_id IS NULL"))
+
+        if "patients" in existing_tables:
+            unique_constraints = inspector.get_unique_constraints("patients")
+            constraint_names = {constraint["name"] for constraint in unique_constraints}
+
+            for constraint in unique_constraints:
+                column_names = constraint.get("column_names", [])
+                if column_names in (["phone"], ["email"]):
+                    if constraint["name"] in constraint_names:
+                        conn.execute(text(f'ALTER TABLE patients DROP CONSTRAINT IF EXISTS "{constraint["name"]}"'))
+
+            new_constraints = [
+                ("uq_patient_doctor_phone", ["doctor_id", "phone"]),
+                ("uq_patient_doctor_email", ["doctor_id", "email"]),
+            ]
+
+            for constraint_name, columns in new_constraints:
+                existing_constraint = next(
+                    (
+                        constraint
+                        for constraint in inspector.get_unique_constraints("patients")
+                        if constraint.get("column_names") == columns
+                    ),
+                    None,
+                )
+                if existing_constraint is None:
+                    try:
+                        conn.execute(text(
+                            f'ALTER TABLE patients ADD CONSTRAINT "{constraint_name}" UNIQUE ({", ".join(columns)})'
+                        ))
+                    except SQLAlchemyError:
+                        continue
 
 
 app = FastAPI()

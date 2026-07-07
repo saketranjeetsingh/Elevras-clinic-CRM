@@ -27,6 +27,10 @@ function normalizeError(error) {
         return { detail: "Please check your details and try again.", message: "Please check your details and try again." };
     }
 
+    if (lowered.includes("patient already exists")) {
+        return { detail: "Patient already exists.", message: "Patient already exists." };
+    }
+
     if (lowered.includes("invalid email")) {
         return { detail: "We could not find that email.", message: "We could not find that email." };
     }
@@ -37,10 +41,6 @@ function normalizeError(error) {
 
     if (lowered.includes("already exists") || lowered.includes("already registered")) {
         return { detail: "Email already exists.", message: "Email already exists." };
-    }
-
-    if (lowered.includes("patient already exists")) {
-        return { detail: "Patient already exists.", message: "Patient already exists." };
     }
 
     if (status >= 500) {

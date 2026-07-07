@@ -158,9 +158,33 @@ def update_patient(
         patient.name = updated_patient.name
 
     if updated_patient.phone is not None:
+        duplicate_phone = db.query(Patient).filter(
+            Patient.doctor_id == current_doctor["doctor_id"],
+            Patient.id != patient_id,
+            Patient.phone == updated_patient.phone
+        ).first()
+
+        if duplicate_phone:
+            raise HTTPException(
+                status_code=409,
+                detail="Patient already exists"
+            )
+
         patient.phone = updated_patient.phone
 
     if updated_patient.email is not None:
+        duplicate_email = db.query(Patient).filter(
+            Patient.doctor_id == current_doctor["doctor_id"],
+            Patient.id != patient_id,
+            Patient.email == updated_patient.email
+        ).first()
+
+        if duplicate_email:
+            raise HTTPException(
+                status_code=409,
+                detail="Patient already exists"
+            )
+
         patient.email = updated_patient.email
 
     if updated_patient.age is not None:

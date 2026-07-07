@@ -49,17 +49,17 @@ function Dashboard() {
                 </div>
 
                 <div className="card">
-                    <h3>Today's Appointments</h3>
+                    <h3>Total Appointments</h3>
                     <p>{stats.total_appointments}</p>
                 </div>
 
                 <div className="card">
-                    <h3>Active Treatments</h3>
+                    <h3>Total Treatments</h3>
                     <p>{stats.total_treatments}</p>
                 </div>
 
                 <div className="card">
-                    <h3>Pending Bills</h3>
+                    <h3>Total Bills</h3>
                     <p>{stats.total_bills}</p>
                 </div>
 
