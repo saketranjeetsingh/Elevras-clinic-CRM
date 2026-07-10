@@ -9,7 +9,7 @@ from app.database import Base
 from app.database import engine
 import logging
 
-# Models
+# Models!
 from app.models.patient import Patient
 from app.models.appointment import Appointment
 from app.models.treatment import Treatment
