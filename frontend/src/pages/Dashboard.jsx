@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
+import AuthContext from "../contexts/AuthContext";
 import { get } from "../services/api";
 
 const emptyStats = {
@@ -10,6 +11,7 @@ const emptyStats = {
 };
 
 function Dashboard() {
+    const { user } = useContext(AuthContext);
     const [stats, setStats] = useState(emptyStats);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -35,9 +37,21 @@ function Dashboard() {
         fetchStats();
     }, []);
 
+    const greetingName = user?.doctor_name || user?.name || "Doctor";
+    const displayName = greetingName.startsWith("Dr.") ? greetingName : `Dr. ${greetingName}`;
+    const hour = new Date().getHours();
+    const greeting = hour < 12 ? "Good Morning" : hour < 17 ? "Good Afternoon" : "Good Evening";
+
     return (
         <div className="page">
-            <h1>Dashboard</h1>
+            <div className="page-header">
+                <div>
+                    <p className="eyebrow">Welcome back</p>
+                    <h1>{greeting}, {displayName}</h1>
+                    <p className="page-subtitle">{user?.clinic_name || "Your Clinic"}</p>
+                    <h2>Today's Overview</h2>
+                </div>
+            </div>
 
             {loading && <p className="status-message">Loading summary...</p>}
             {error && <p className="status-message error">{error}</p>}
@@ -65,7 +79,7 @@ function Dashboard() {
 
                 <div className="card">
                     <h3>Revenue</h3>
-                    <p>${stats.total_revenue}</p>
+                    <p>₹{Number(stats.total_revenue || 0).toLocaleString("en-IN")}</p>
                 </div>
             </div>
         </div>

@@ -12,6 +12,12 @@ export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
+    const normalizeUser = (profile) => ({
+        ...profile,
+        doctor_name: profile?.doctor_name || profile?.name || "",
+        clinic_name: profile?.clinic_name || "",
+    });
+
     const fetchMe = async () => {
         const token = localStorage.getItem("token");
 
@@ -23,7 +29,7 @@ export function AuthProvider({ children }) {
 
         try {
             const res = await api.get("/auth/me");
-            setUser(res.data);
+            setUser(normalizeUser(res.data));
         } catch (err) {
             localStorage.removeItem("token");
             setUser(null);
@@ -42,7 +48,7 @@ export function AuthProvider({ children }) {
         setLoading(true);
         try {
             const res = await api.get("/auth/me");
-            setUser(res.data);
+            setUser(normalizeUser(res.data));
         } catch (err) {
             localStorage.removeItem("token");
             setUser(null);

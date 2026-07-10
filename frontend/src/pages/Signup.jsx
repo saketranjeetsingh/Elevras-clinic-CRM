@@ -22,7 +22,7 @@ function Signup() {
 
     const validateForm = () => {
         if (!form.name.trim()) {
-            setError("Please enter your full name.");
+            setError("Please enter your doctor name.");
             return false;
         }
 
@@ -84,12 +84,14 @@ function Signup() {
 
                 <div className="auth-header">
                     <h1>Create account</h1>
-                    <p>Set up your clinic profile to get started.</p>
+                    <p>Set up your doctor and clinic profile to get started.</p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="auth-form">
-                    <input name="name" placeholder="Full name" value={form.name} onChange={handleChange} />
-                    <input name="email" type="email" placeholder="Email address" value={form.email} onChange={handleChange} />
+                    <label className="field-label" htmlFor="doctorName">Doctor Name</label>
+                    <input id="doctorName" name="name" placeholder="Doctor Name" value={form.name} onChange={handleChange} />
+                    <label className="field-label" htmlFor="email">Email</label>
+                    <input id="email" name="email" type="email" placeholder="Email address" value={form.email} onChange={handleChange} />
 
                     <div className="auth-input-group">
                         <input
@@ -108,7 +110,8 @@ function Signup() {
                         </button>
                     </div>
 
-                    <input name="clinic_name" placeholder="Clinic name" value={form.clinic_name} onChange={handleChange} />
+                    <label className="field-label" htmlFor="clinicName">Clinic Name</label>
+                    <input id="clinicName" name="clinic_name" placeholder="Clinic Name" value={form.clinic_name} onChange={handleChange} />
                     <button className="btn auth-submit" type="submit" disabled={loading}>
                         {loading ? "Creating account..." : "Create account"}
                     </button>

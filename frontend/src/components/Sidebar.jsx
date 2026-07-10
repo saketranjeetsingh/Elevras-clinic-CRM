@@ -6,6 +6,10 @@ export default function Sidebar() {
     const { user, logout } = useContext(AuthContext);
     const navigate = useNavigate();
 
+    const doctorName = user?.doctor_name || user?.name || "Doctor";
+    const clinicName = user?.clinic_name || "Your Clinic";
+    const displayName = doctorName.startsWith("Dr.") ? doctorName : `Dr. ${doctorName}`;
+
     const handleLogout = () => {
         if (!window.confirm("Are you sure you want to logout?")) {
             return;
@@ -20,8 +24,9 @@ export default function Sidebar() {
             <div className="sidebar-header">
                 <h2>Elevras CRM</h2>
                 {user && (
-                    <div className="sidebar-user">
-                        {user.email || user.name}
+                    <div className="sidebar-profile">
+                        <div className="sidebar-clinic">{clinicName}</div>
+                        <div className="sidebar-doctor">{displayName}</div>
                     </div>
                 )}
             </div>
@@ -35,6 +40,7 @@ export default function Sidebar() {
             </nav>
 
             <div className="sidebar-footer">
+                <div className="sidebar-divider" />
                 <button className="btn-logout" onClick={handleLogout}>
                     Logout
                 </button>

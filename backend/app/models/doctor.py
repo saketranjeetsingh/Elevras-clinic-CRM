@@ -17,4 +17,4 @@ class Doctor(Base):
 
     hashed_password = Column(String, nullable=False)
 
-    clinic_name = Column(String)
+    clinic_name = Column(String, nullable=False)

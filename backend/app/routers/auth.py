@@ -123,10 +123,23 @@ def login(
 def get_me(
     current_doctor: dict = Depends(
         get_current_doctor
-    )
+    ),
+    db: Session = Depends(get_db)
 ):
 
+    db_doctor = db.query(Doctor).filter(
+        Doctor.id == current_doctor["doctor_id"]
+    ).first()
+
+    if not db_doctor:
+        raise HTTPException(
+            status_code=404,
+            detail="Doctor not found"
+        )
+
     return {
-        "doctor_id": current_doctor["doctor_id"],
-        "email": current_doctor["email"]
+        "doctor_id": db_doctor.id,
+        "doctor_name": db_doctor.name,
+        "clinic_name": db_doctor.clinic_name,
+        "email": db_doctor.email
     }
