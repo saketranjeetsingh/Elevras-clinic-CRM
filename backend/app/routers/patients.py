@@ -11,6 +11,7 @@ from app.models.appointment import Appointment
 from app.models.bill import Bill
 from app.models.patient import Patient
 from app.models.treatment import Treatment
+from app.models.doctor import Doctor
 
 from app.schemas.patient import PatientCreate
 from app.schemas.patient import PatientUpdate
@@ -59,6 +60,9 @@ def create_patient(
         email=patient.email,
         age=patient.age,
         gender=patient.gender,
+        address=patient.address,
+        blood_group=patient.blood_group,
+        medical_history=patient.medical_history,
         notes=patient.notes,
         last_treatment=patient.last_treatment
     )
@@ -112,6 +116,69 @@ def search_patient(
     ).first()
 
     return patient
+
+
+@router.get("/{patient_id}/profile")
+def get_patient_profile(
+    patient_id: int,
+    current_doctor: dict = Depends(get_current_doctor),
+    db: Session = Depends(get_db)
+):
+
+    patient = db.query(Patient).filter(
+        Patient.id == patient_id,
+        Patient.doctor_id == current_doctor["doctor_id"]
+    ).first()
+
+    if not patient:
+        raise HTTPException(
+            status_code=404,
+            detail="Patient not found"
+        )
+
+    appointments = db.query(Appointment).filter(
+        Appointment.patient_id == patient_id,
+        Appointment.doctor_id == current_doctor["doctor_id"]
+    ).all()
+
+    treatments = db.query(Treatment).filter(
+        Treatment.patient_id == patient_id,
+        Treatment.doctor_id == current_doctor["doctor_id"]
+    ).all()
+
+    bills = db.query(Bill).filter(
+        Bill.patient_id == patient_id,
+        Bill.doctor_id == current_doctor["doctor_id"]
+    ).all()
+
+    doctor_ids = {treatment.doctor_id for treatment in treatments if treatment.doctor_id is not None}
+    doctors = db.query(Doctor).filter(Doctor.id.in_(doctor_ids)).all() if doctor_ids else []
+    doctor_map = {doctor.id: doctor.name for doctor in doctors}
+
+    normalized_treatments = []
+    for treatment in treatments:
+        normalized_treatments.append({
+            **treatment.__dict__,
+            "doctor_name": doctor_map.get(treatment.doctor_id, "Unknown Doctor"),
+        })
+
+    pending_amount = sum(
+        bill.amount or 0 for bill in bills
+        if (bill.payment_status or "").lower() != "paid"
+    )
+
+    return {
+        "patient": patient,
+        "appointments": appointments,
+        "treatments": normalized_treatments,
+        "bills": bills,
+        "stats": {
+            "appointments": len(appointments),
+            "treatments": len(treatments),
+            "bills": len(bills),
+            "pending_amount": pending_amount,
+        },
+    }
 
 
 @router.get("/{patient_id}")
@@ -192,6 +259,15 @@ def update_patient(
 
     if updated_patient.gender is not None:
         patient.gender = updated_patient.gender
+
+    if updated_patient.address is not None:
+        patient.address = updated_patient.address
+
+    if updated_patient.blood_group is not None:
+        patient.blood_group = updated_patient.blood_group
+
+    if updated_patient.medical_history is not None:
+        patient.medical_history = updated_patient.medical_history
 
     if updated_patient.notes is not None:
         patient.notes = updated_patient.notes

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { get, post, put, del } from "../services/api";
 
 function Patients() {
@@ -13,6 +14,9 @@ function Patients() {
         email: "",
         age: "",
         gender: "",
+        address: "",
+        blood_group: "",
+        medical_history: "",
         notes: "",
         last_treatment: "",
     });
@@ -62,6 +66,9 @@ function Patients() {
                     email: form.email,
                     age: Number(form.age) || 0,
                     gender: form.gender,
+                    address: form.address,
+                    blood_group: form.blood_group,
+                    medical_history: form.medical_history,
                     notes: form.notes,
                     last_treatment: form.last_treatment,
                 });
@@ -75,6 +82,9 @@ function Patients() {
                     email: form.email,
                     age: Number(form.age) || 0,
                     gender: form.gender,
+                    address: form.address,
+                    blood_group: form.blood_group,
+                    medical_history: form.medical_history,
                     notes: form.notes,
                     last_treatment: form.last_treatment,
                 });
@@ -88,6 +98,9 @@ function Patients() {
                 email: "",
                 age: "",
                 gender: "",
+                address: "",
+                blood_group: "",
+                medical_history: "",
                 notes: "",
                 last_treatment: "",
             });
@@ -107,6 +120,9 @@ function Patients() {
             email: patient.email || "",
             age: patient.age || "",
             gender: patient.gender || "",
+            address: patient.address || "",
+            blood_group: patient.blood_group || "",
+            medical_history: patient.medical_history || "",
             notes: patient.notes || "",
             last_treatment: patient.last_treatment || "",
         });
@@ -173,10 +189,13 @@ function Patients() {
                 <input name="email" placeholder="Email" value={form.email} onChange={handleChange} />
                 <input name="age" type="number" placeholder="Age" value={form.age} onChange={handleChange} />
                 <input name="gender" placeholder="Gender" value={form.gender} onChange={handleChange} />
+                <input name="address" placeholder="Address" value={form.address} onChange={handleChange} />
+                <input name="blood_group" placeholder="Blood Group" value={form.blood_group} onChange={handleChange} />
+                <input name="medical_history" placeholder="Medical History" value={form.medical_history} onChange={handleChange} />
                 <input name="notes" placeholder="Notes" value={form.notes} onChange={handleChange} />
                 <input name="last_treatment" type="date" value={form.last_treatment} onChange={handleChange} />
                 <button className="btn" type="submit">{editingId ? "Save" : "Create"}</button>
-                {editingId && <button type="button" className="btn" onClick={() => { setEditingId(null); setForm({ name: "", phone: "", email: "", age: "", gender: "", notes: "", last_treatment: "" }); }}>Cancel</button>}
+                {editingId && <button type="button" className="btn" onClick={() => { setEditingId(null); setForm({ name: "", phone: "", email: "", age: "", gender: "", address: "", blood_group: "", medical_history: "", notes: "", last_treatment: "" }); }}>Cancel</button>}
             </form>
 
             <form onSubmit={handleSearch} className="search-row" style={{ marginBottom: 12 }}>
@@ -205,8 +224,12 @@ function Patients() {
                 <tbody>
                     {patients.map((p) => (
                         <tr key={p.id}>
-                            <td>{p.id}</td>
-                            <td>{p.name}</td>
+                            <td>
+                                <Link to={`/patients/${p.id}`} className="patient-link">{p.id}</Link>
+                            </td>
+                            <td>
+                                <Link to={`/patients/${p.id}`} className="patient-link">{p.name}</Link>
+                            </td>
                             <td>{p.phone}</td>
                             <td>{p.email}</td>
                             <td>{p.age}</td>

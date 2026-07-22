@@ -4,6 +4,7 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
 import Patients from "./pages/Patients";
+import PatientProfile from "./pages/PatientProfile";
 import Appointments from "./pages/Appointments";
 import Treatments from "./pages/Treatments";
 import Bills from "./pages/Bills";
@@ -30,6 +31,15 @@ function App() {
                     element={
                         <ProtectedRoute>
                             <Patients />
+                        </ProtectedRoute>
+                    }
+                />
+
+                <Route
+                    path="/patients/:id"
+                    element={
+                        <ProtectedRoute>
+                            <PatientProfile />
                         </ProtectedRoute>
                     }
                 />

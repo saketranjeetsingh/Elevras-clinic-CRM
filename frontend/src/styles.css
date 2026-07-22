@@ -47,6 +47,9 @@ body{
 .page-header h1{margin:0;font-size:28px;line-height:1.2}
 .page-subtitle{margin:8px 0 10px;color:var(--muted);font-size:16px}
 .page-header h2{margin:8px 0 0;font-size:20px}
+.back-link{display:inline-flex;align-items:center;gap:6px;color:var(--accent);text-decoration:none;font-weight:600;margin-bottom:8px}
+.patient-link{color:var(--accent);font-weight:600;text-decoration:none}
+.patient-link:hover{text-decoration:underline}
 
 .auth-page{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:linear-gradient(135deg,#eef4ff 0%,#f8fafc 100%)}
 .auth-card{width:min(100%,440px);background:var(--card);padding:32px;border-radius:16px;box-shadow:var(--shadow)}
@@ -71,6 +74,20 @@ body{
 .card{background:var(--card);padding:18px;border-radius:12px;box-shadow:0 8px 20px rgba(15,23,42,0.06)}
 .card h3{margin:0 0 8px 0;font-size:14px;color:var(--muted);font-weight:600}
 .card p{margin:0;font-size:24px;font-weight:700;color:#111827}
+.profile-layout{display:flex;flex-direction:column;gap:20px}
+.profile-card{padding:22px}
+.section-card{background:var(--card);padding:18px;border-radius:12px;box-shadow:0 8px 20px rgba(15,23,42,0.06)}
+.section-heading-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px}
+.section-heading-row h2{margin:0;font-size:20px}
+.muted-chip{background:#f3f4f6;color:#4b5563;padding:6px 10px;border-radius:999px;font-size:12px;font-weight:700}
+.info-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}
+.info-grid p{margin:6px 0 0;font-size:15px;color:#111827}
+.table-wrap{overflow:auto}
+.status-badge{display:inline-flex;border-radius:999px;padding:4px 10px;font-size:12px;font-weight:700}
+.status-badge.success{background:#dcfce7;color:#166534}
+.status-badge.danger{background:#fee2e2;color:#b91c1c}
+.status-badge.neutral{background:#e5e7eb;color:#374151}
+.empty-state{text-align:center;color:var(--muted)}
 
 table{width:100%;border-collapse:collapse;background:var(--card);border-radius:8px;overflow:hidden}
 th,td{padding:10px;text-align:left;border-bottom:1px solid #eef2f7}
@@ -92,4 +109,5 @@ thead th{background:#f8fafc}
     .auth-card{padding:24px}
     .form-row,.search-row{flex-direction:column}
     .search-row .btn{width:100%}
+    .section-heading-row{flex-direction:column;align-items:flex-start}
 }
