@@ -9,6 +9,7 @@ from app.models.bill import Bill
 from app.schemas.bill import BillCreate
 
 from app.dependencies import get_current_doctor
+from app.dependencies import get_patient_for_current_doctor
 
 
 router = APIRouter(
@@ -37,6 +38,12 @@ def create_bill(
     ),
     db: Session = Depends(get_db)
 ):
+
+    get_patient_for_current_doctor(
+        bill.patient_id,
+        current_doctor,
+        db
+    )
 
     new_bill = Bill(
         doctor_id=current_doctor["doctor_id"],

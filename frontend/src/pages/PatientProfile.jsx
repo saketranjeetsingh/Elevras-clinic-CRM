@@ -118,20 +118,18 @@ function PatientProfile() {
                                 <thead>
                                     <tr>
                                         <th>Date</th>
-                                        <th>Time</th>
                                         <th>Status</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {appointments.length === 0 ? (
                                         <tr>
-                                            <td colSpan="3" className="empty-state">No appointments found for this patient.</td>
+                                            <td colSpan="2" className="empty-state">No appointments found for this patient.</td>
                                         </tr>
                                     ) : (
                                         appointments.map((appointment) => (
                                             <tr key={appointment.id}>
                                                 <td>{appointment.appointment_date || "—"}</td>
-                                                <td>—</td>
                                                 <td>
                                                     <span className={statusBadgeClass(appointment.status)}>{appointment.status || "Unknown"}</span>
                                                 </td>
@@ -154,13 +152,12 @@ function PatientProfile() {
                                         <th>Treatment</th>
                                         <th>Status</th>
                                         <th>Doctor</th>
-                                        <th>Date</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {treatments.length === 0 ? (
                                         <tr>
-                                            <td colSpan="4" className="empty-state">No treatments found for this patient.</td>
+                                            <td colSpan="3" className="empty-state">No treatments found for this patient.</td>
                                         </tr>
                                     ) : (
                                         treatments.map((treatment) => (
@@ -170,7 +167,6 @@ function PatientProfile() {
                                                     <span className={statusBadgeClass(treatment.status)}>{treatment.status || "Unknown"}</span>
                                                 </td>
                                                 <td>{treatment.doctor_name || "—"}</td>
-                                                <td>{patient.last_treatment || "—"}</td>
                                             </tr>
                                         ))
                                     )}

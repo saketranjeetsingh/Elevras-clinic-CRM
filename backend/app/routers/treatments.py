@@ -11,6 +11,7 @@ from app.models.treatment import Treatment
 from app.schemas.treatment import TreatmentCreate
 
 from app.dependencies import get_current_doctor
+from app.dependencies import get_patient_for_current_doctor
 
 
 router = APIRouter(
@@ -39,6 +40,12 @@ def create_treatment(
     ),
     db: Session = Depends(get_db)
 ):
+
+    get_patient_for_current_doctor(
+        treatment.patient_id,
+        current_doctor,
+        db
+    )
 
     new_treatment = Treatment(
         doctor_id=current_doctor["doctor_id"],

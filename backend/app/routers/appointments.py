@@ -8,6 +8,7 @@ from app.database import SessionLocal
 from app.models.appointment import Appointment
 from app.schemas.appointment import AppointmentCreate
 from app.dependencies import get_current_doctor
+from app.dependencies import get_patient_for_current_doctor
 
 
 router = APIRouter(
@@ -36,6 +37,12 @@ def create_appointment(
     ),
     db: Session = Depends(get_db)
 ):
+
+    get_patient_for_current_doctor(
+        appointment.patient_id,
+        current_doctor,
+        db
+    )
 
     new_appointment = Appointment(
         doctor_id=current_doctor["doctor_id"],
