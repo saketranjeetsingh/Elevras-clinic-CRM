@@ -1,9 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import PatientSelector from "../components/PatientSelector";
+import PatientSummaryCard from "../components/PatientSummaryCard";
 import { get, post, put } from "../services/api";
+import { createPatientLookup } from "../utils/patientHelpers";
 
 function Bills() {
     const [bills, setBills] = useState([]);
+    const [patients, setPatients] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(null);
@@ -20,12 +23,14 @@ function Bills() {
         setLoading(true);
         setError(null);
         try {
-            const [billsData] = await Promise.all([
+            const [billsData, patientsData] = await Promise.all([
                 get("/bills"),
+                get("/patients"),
             ]);
             setBills(billsData || []);
+            setPatients(patientsData || []);
         } catch (err) {
-            setError(err?.detail || err?.message || JSON.stringify(err));
+            setError(err?.detail || err?.message || "We could not load bills right now.");
         } finally {
             setLoading(false);
         }
@@ -34,6 +39,8 @@ function Bills() {
     useEffect(() => {
         fetchBills();
     }, []);
+
+    const patientLookup = useMemo(() => createPatientLookup(patients), [patients]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -63,7 +70,7 @@ function Bills() {
             await fetchBills();
             setSuccess("Bill created successfully");
         } catch (err) {
-            setError(err?.detail || err?.message || JSON.stringify(err));
+            setError(err?.detail || err?.message || "We could not save the bill.");
         }
     };
 
@@ -75,7 +82,7 @@ function Bills() {
             await fetchBills();
             setSuccess("Bill updated successfully");
         } catch (err) {
-            setError(err?.detail || err?.message || JSON.stringify(err));
+            setError(err?.detail || err?.message || "We could not update the bill.");
         }
     };
 
@@ -111,23 +118,11 @@ function Bills() {
                 <button className="btn" type="submit" disabled={!selectedPatient}>Create</button>
             </form>
 
-            {selectedPatient && (
-                <div className="patient-summary-card">
-                    <div className="field-label">Selected patient</div>
-                    <div className="patient-summary-row">
-                        <strong>{selectedPatient.name || "Patient"}</strong>
-                        <span>{selectedPatient.age ? `${selectedPatient.age} yrs` : "Age not provided"}</span>
-                    </div>
-                    <div className="patient-summary-row">
-                        <span>{selectedPatient.gender || "Gender not provided"}</span>
-                        <span>{selectedPatient.phone || "No phone provided"}</span>
-                    </div>
-                </div>
-            )}
+            <PatientSummaryCard patient={selectedPatient} />
 
-            {success && <p className="success">{success}</p>}
-            {loading && <p>Loading bills...</p>}
-            {error && <p className="error">Error: {error}</p>}
+            {success && <p className="status-message success">{success}</p>}
+            {loading && <p className="status-message">Loading bills...</p>}
+            {error && <p className="status-message error">{error}</p>}
 
             <table>
                 <thead>
@@ -143,7 +138,14 @@ function Bills() {
                     {bills.map((b) => (
                         <tr key={b.id}>
                             <td>{b.id}</td>
-                            <td>{b.patient_id}</td>
+                            <td>
+                                <div className="patient-cell">
+                                    <span>{patientLookup.get(b.patient_id)?.name || "Unknown patient"}</span>
+                                    {patientLookup.get(b.patient_id)?.phone ? (
+                                        <small>{patientLookup.get(b.patient_id).phone}</small>
+                                    ) : null}
+                                </div>
+                            </td>
                             <td>{b.amount}</td>
                             <td>
                                 <select value={b.payment_status || "Pending"} onChange={(e) => handleUpdatePaymentStatus(b, e.target.value)}>

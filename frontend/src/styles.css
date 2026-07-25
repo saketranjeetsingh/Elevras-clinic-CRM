@@ -81,6 +81,9 @@ body{
 .patient-selector-option.empty{color:var(--muted);cursor:default}
 .patient-selector-empty{margin-top:8px;padding:12px;border:1px dashed var(--border);border-radius:10px;background:#f9fafb}
 .patient-selector-empty p{margin:4px 0}
+.patient-selector-helper{margin:0;font-size:13px;color:var(--muted)}
+.patient-cell{display:flex;flex-direction:column;gap:2px}
+.patient-cell small{color:var(--muted);font-size:12px}
 .patient-summary-card{margin:8px 0 16px;padding:14px 16px;border:1px solid var(--border);border-radius:12px;background:var(--accent-soft)}
 .patient-summary-row{display:flex;justify-content:space-between;gap:10px;align-items:center;padding-top:6px;color:#374151}
 

@@ -72,6 +72,8 @@ function PatientSelector({ selectedPatient, onSelect, onClear }) {
         onClear?.();
     };
 
+    const showSelectionHint = Boolean(query.trim()) && !selectedPatient;
+
     return (
         <div className="patient-selector" ref={wrapperRef}>
             <label className="field-label">Patient</label>
@@ -94,6 +96,7 @@ function PatientSelector({ selectedPatient, onSelect, onClear }) {
             </div>
 
             {loading && <p className="status-message">Loading patients...</p>}
+            {showSelectionHint && <p className="patient-selector-helper">Select a patient from the list.</p>}
             {error && <p className="status-message error">{error}</p>}
 
             {!loading && !error && patients.length === 0 && (

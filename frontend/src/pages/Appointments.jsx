@@ -1,9 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import PatientSelector from "../components/PatientSelector";
+import PatientSummaryCard from "../components/PatientSummaryCard";
 import { get, post, put } from "../services/api";
+import { createPatientLookup } from "../utils/patientHelpers";
 
 function Appointments() {
     const [appointments, setAppointments] = useState([]);
+    const [patients, setPatients] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(null);
@@ -21,10 +24,12 @@ function Appointments() {
         setLoading(true);
         setError(null);
         try {
-            const [appointmentsData] = await Promise.all([
+            const [appointmentsData, patientsData] = await Promise.all([
                 get("/appointments"),
+                get("/patients"),
             ]);
             setAppointments(appointmentsData || []);
+            setPatients(patientsData || []);
         } catch (err) {
             setError(err?.detail || err?.message || "We could not load appointments right now.");
         } finally {
@@ -35,6 +40,8 @@ function Appointments() {
     useEffect(() => {
         fetchAppointments();
     }, []);
+
+    const patientLookup = useMemo(() => createPatientLookup(patients), [patients]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -110,19 +117,7 @@ function Appointments() {
                 <button className="btn" type="submit" disabled={!selectedPatient}>Create</button>
             </form>
 
-            {selectedPatient && (
-                <div className="patient-summary-card">
-                    <div className="field-label">Selected patient</div>
-                    <div className="patient-summary-row">
-                        <strong>{selectedPatient.name || "Patient"}</strong>
-                        <span>{selectedPatient.age ? `${selectedPatient.age} yrs` : "Age not provided"}</span>
-                    </div>
-                    <div className="patient-summary-row">
-                        <span>{selectedPatient.gender || "Gender not provided"}</span>
-                        <span>{selectedPatient.phone || "No phone provided"}</span>
-                    </div>
-                </div>
-            )}
+            <PatientSummaryCard patient={selectedPatient} />
 
             {success && <p className="status-message success">{success}</p>}
             {loading && <p className="status-message">Loading appointments...</p>}
@@ -143,7 +138,14 @@ function Appointments() {
                     {appointments.map((a) => (
                         <tr key={a.id}>
                             <td>{a.id}</td>
-                            <td>{a.patient_id}</td>
+                            <td>
+                                <div className="patient-cell">
+                                    <span>{patientLookup.get(a.patient_id)?.name || "Unknown patient"}</span>
+                                    {patientLookup.get(a.patient_id)?.phone ? (
+                                        <small>{patientLookup.get(a.patient_id).phone}</small>
+                                    ) : null}
+                                </div>
+                            </td>
                             <td>{a.doctor_name}</td>
                             <td>{a.appointment_date}</td>
                             <td>
