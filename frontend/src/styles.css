@@ -105,6 +105,24 @@ body{
 .status-badge.danger{background:#fee2e2;color:#b91c1c}
 .status-badge.neutral{background:#e5e7eb;color:#374151}
 .empty-state{text-align:center;color:var(--muted)}
+.quick-actions{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.inline-form-card{margin-top:12px;padding:16px;border:1px solid var(--border);border-radius:12px;background:#f8fafc;display:flex;flex-direction:column;gap:10px}
+.quick-form-actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn.secondary{background:#e5e7eb;color:#111827}
+.activity-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.activity-card{padding:14px;border:1px solid var(--border);border-radius:12px;background:#f9fafb;display:flex;flex-direction:column;gap:8px}
+.activity-date{margin:0;font-size:14px;font-weight:600;color:#111827}
+.activity-description{margin:0;color:var(--muted);font-size:14px}
+.medical-history-list{display:flex;flex-wrap:wrap;gap:8px}
+.medical-history-pill{display:inline-flex;align-items:center;padding:8px 10px;border-radius:999px;background:var(--accent-soft);color:var(--accent);font-size:13px;font-weight:600}
+.timeline-list{display:flex;flex-direction:column;gap:12px}
+.timeline-item{display:flex;gap:12px;padding:12px;border:1px solid var(--border);border-radius:12px;background:#f9fafb}
+.timeline-icon{font-size:20px;display:flex;align-items:flex-start;padding-top:2px}
+.timeline-content{flex:1;display:flex;flex-direction:column;gap:4px}
+.timeline-meta{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.timeline-title{font-size:15px}
+.timeline-date{margin:0;font-size:13px;color:var(--muted)}
+.timeline-description{margin:0;color:#374151}
 
 table{width:100%;border-collapse:collapse;background:var(--card);border-radius:8px;overflow:hidden}
 th,td{padding:10px;text-align:left;border-bottom:1px solid #eef2f7}
@@ -127,5 +145,7 @@ thead th{background:#f8fafc}
     .form-row,.search-row{flex-direction:column}
     .search-row .btn{width:100%}
     .patient-summary-row{flex-direction:column;align-items:flex-start}
+    .quick-actions,.quick-form-actions{flex-direction:column}
+    .timeline-meta{flex-direction:column;align-items:flex-start}
     .section-heading-row{flex-direction:column;align-items:flex-start}
 }
