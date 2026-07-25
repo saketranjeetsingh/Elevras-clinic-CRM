@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
+import PatientSelector from "../components/PatientSelector";
 import { get, post, put } from "../services/api";
 
 function Bills() {
     const [bills, setBills] = useState([]);
-    const [patients, setPatients] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(null);
@@ -14,17 +14,16 @@ function Bills() {
         payment_status: "Pending",
         payment_method: "Cash",
     });
+    const [selectedPatient, setSelectedPatient] = useState(null);
 
     const fetchBills = async () => {
         setLoading(true);
         setError(null);
         try {
-            const [billsData, patientsData] = await Promise.all([
+            const [billsData] = await Promise.all([
                 get("/bills"),
-                get("/patients"),
             ]);
             setBills(billsData || []);
-            setPatients(patientsData || []);
         } catch (err) {
             setError(err?.detail || err?.message || JSON.stringify(err));
         } finally {
@@ -45,6 +44,12 @@ function Bills() {
         e.preventDefault();
         setError(null);
         setSuccess(null);
+
+        if (!selectedPatient) {
+            setError("Please select a patient before creating a bill.");
+            return;
+        }
+
         try {
             await post("/bills", {
                 patient_id: Number(form.patient_id),
@@ -54,6 +59,7 @@ function Bills() {
             });
 
             setForm({ patient_id: "", amount: "", payment_status: "Pending", payment_method: "Cash" });
+            setSelectedPatient(null);
             await fetchBills();
             setSuccess("Bill created successfully");
         } catch (err) {
@@ -78,12 +84,19 @@ function Bills() {
             <h1>Bills</h1>
 
             <form onSubmit={handleCreate} className="form-row" style={{ marginBottom: 12 }}>
-                <select name="patient_id" value={form.patient_id} onChange={handleChange}>
-                    <option value="">Select patient</option>
-                    {patients.map((patient) => (
-                        <option key={patient.id} value={patient.id}>{patient.name} ({patient.phone})</option>
-                    ))}
-                </select>
+                <div style={{ width: "100%" }}>
+                    <PatientSelector
+                        selectedPatient={selectedPatient}
+                        onSelect={(patient) => {
+                            setSelectedPatient(patient);
+                            setForm((s) => ({ ...s, patient_id: patient.id }));
+                        }}
+                        onClear={() => {
+                            setSelectedPatient(null);
+                            setForm((s) => ({ ...s, patient_id: "" }));
+                        }}
+                    />
+                </div>
                 <input name="amount" placeholder="Amount" value={form.amount} onChange={handleChange} />
                 <select name="payment_status" value={form.payment_status} onChange={handleChange}>
                     <option value="Pending">Pending</option>
@@ -95,8 +108,22 @@ function Bills() {
                     <option value="Card">Card</option>
                     <option value="Insurance">Insurance</option>
                 </select>
-                <button className="btn" type="submit">Create</button>
+                <button className="btn" type="submit" disabled={!selectedPatient}>Create</button>
             </form>
+
+            {selectedPatient && (
+                <div className="patient-summary-card">
+                    <div className="field-label">Selected patient</div>
+                    <div className="patient-summary-row">
+                        <strong>{selectedPatient.name || "Patient"}</strong>
+                        <span>{selectedPatient.age ? `${selectedPatient.age} yrs` : "Age not provided"}</span>
+                    </div>
+                    <div className="patient-summary-row">
+                        <span>{selectedPatient.gender || "Gender not provided"}</span>
+                        <span>{selectedPatient.phone || "No phone provided"}</span>
+                    </div>
+                </div>
+            )}
 
             {success && <p className="success">{success}</p>}
             {loading && <p>Loading bills...</p>}
