@@ -1,6 +1,7 @@
-import React, { createContext, useEffect, useState } from "react";
+import { createContext, useCallback, useEffect, useState } from "react";
 import api from "../services/api";
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const AuthContext = createContext({
     user: null,
     loading: true,
@@ -18,7 +19,7 @@ export function AuthProvider({ children }) {
         clinic_name: profile?.clinic_name || "",
     });
 
-    const fetchMe = async () => {
+    const fetchMe = useCallback(async () => {
         const token = localStorage.getItem("token");
 
         if (!token) {
@@ -30,18 +31,21 @@ export function AuthProvider({ children }) {
         try {
             const res = await api.get("/auth/me");
             setUser(normalizeUser(res.data));
-        } catch (err) {
+        } catch {
             localStorage.removeItem("token");
             setUser(null);
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
     useEffect(() => {
-        fetchMe();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+        const timer = window.setTimeout(() => {
+            void fetchMe();
+        }, 0);
+
+        return () => window.clearTimeout(timer);
+    }, [fetchMe]);
 
     const login = async (token) => {
         localStorage.setItem("token", token);

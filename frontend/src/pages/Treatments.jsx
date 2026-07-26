@@ -38,7 +38,11 @@ function Treatments() {
     };
 
     useEffect(() => {
-        fetchTreatments();
+        const timer = window.setTimeout(() => {
+            void fetchTreatments();
+        }, 0);
+
+        return () => window.clearTimeout(timer);
     }, []);
 
     const patientLookup = useMemo(() => createPatientLookup(patients), [patients]);
@@ -90,76 +94,108 @@ function Treatments() {
 
     return (
         <div className="page">
-            <h1>Treatments</h1>
-
-            <form onSubmit={handleCreate} className="form-row" style={{ marginBottom: 12 }}>
-                <div style={{ width: "100%" }}>
-                    <PatientSelector
-                        selectedPatient={selectedPatient}
-                        onSelect={(patient) => {
-                            setSelectedPatient(patient);
-                            setForm((s) => ({ ...s, patient_id: patient.id }));
-                        }}
-                        onClear={() => {
-                            setSelectedPatient(null);
-                            setForm((s) => ({ ...s, patient_id: "" }));
-                        }}
-                    />
+            <div className="page-header page-header-card">
+                <div>
+                    <p className="eyebrow"><span className="eyebrow-icon"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 2.8 1.7 5.2 4.2 6.3V20h5.6v-4.7A7 7 0 0 0 19 9a7 7 0 0 0-7-7Zm0 4.6a2.4 2.4 0 1 1-2.4 2.4A2.4 2.4 0 0 1 12 6.6Z" /></svg></span> Treatments</p>
+                    <h1>Track care plans with confidence</h1>
+                    <p className="page-subtitle">Record treatments and keep each patient’s progress visible from one view.</p>
                 </div>
-                <input name="treatment_name" placeholder="Treatment" value={form.treatment_name} onChange={handleChange} />
-                <input name="cost" placeholder="Cost" value={form.cost} onChange={handleChange} />
-                <select name="status" value={form.status} onChange={handleChange}>
-                    <option value="Planned">Planned</option>
-                    <option value="In Progress">In Progress</option>
-                    <option value="Completed">Completed</option>
-                </select>
-                <input name="notes" placeholder="Notes" value={form.notes} onChange={handleChange} />
-                <button className="btn" type="submit" disabled={!selectedPatient}>Create</button>
-            </form>
+            </div>
+
+            <section className="section-card form-card">
+                <div className="section-heading-row">
+                    <h2>Create treatment</h2>
+                    <span className="muted-chip">Care tracking</span>
+                </div>
+                <form onSubmit={handleCreate} className="form-grid">
+                    <div className="full-width">
+                        <PatientSelector
+                            selectedPatient={selectedPatient}
+                            onSelect={(patient) => {
+                                setSelectedPatient(patient);
+                                setForm((s) => ({ ...s, patient_id: patient.id }));
+                            }}
+                            onClear={() => {
+                                setSelectedPatient(null);
+                                setForm((s) => ({ ...s, patient_id: "" }));
+                            }}
+                        />
+                    </div>
+                    <input name="treatment_name" placeholder="Treatment" value={form.treatment_name} onChange={handleChange} />
+                    <input name="cost" placeholder="Cost" value={form.cost} onChange={handleChange} />
+                    <select name="status" value={form.status} onChange={handleChange}>
+                        <option value="Planned">Planned</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Completed">Completed</option>
+                    </select>
+                    <input name="notes" placeholder="Notes" value={form.notes} onChange={handleChange} />
+                    <button className="btn" type="submit" disabled={!selectedPatient}>Create treatment</button>
+                </form>
+            </section>
 
             <PatientSummaryCard patient={selectedPatient} />
 
-            {success && <p className="status-message success">{success}</p>}
-            {loading && <p className="status-message">Loading treatments...</p>}
-            {error && <p className="status-message error">{error}</p>}
+            {success && <div className="status-card status-card-success"><span>{success}</span></div>}
+            {error && <div className="status-card status-card-error"><span>{error}</span></div>}
 
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Patient</th>
-                        <th>Treatment</th>
-                        <th>Cost</th>
-                        <th>Status</th>
-                        <th>Notes</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {treatments.map((t) => (
-                        <tr key={t.id}>
-                            <td>{t.id}</td>
-                            <td>
-                                <div className="patient-cell">
-                                    <span>{patientLookup.get(t.patient_id)?.name || "Unknown patient"}</span>
-                                    {patientLookup.get(t.patient_id)?.phone ? (
-                                        <small>{patientLookup.get(t.patient_id).phone}</small>
-                                    ) : null}
-                                </div>
-                            </td>
-                            <td>{t.treatment_name}</td>
-                            <td>{t.cost}</td>
-                            <td>
-                                <select value={t.status || "Planned"} onChange={(e) => handleUpdateStatus(t, e.target.value)}>
-                                    <option value="Planned">Planned</option>
-                                    <option value="In Progress">In Progress</option>
-                                    <option value="Completed">Completed</option>
-                                </select>
-                            </td>
-                            <td>{t.notes}</td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
+            <section className="section-card">
+                <div className="section-heading-row">
+                    <h2>Treatment list</h2>
+                    <span className="muted-chip">{treatments.length} entries</span>
+                </div>
+                {loading ? (
+                    <div className="table-skeleton">
+                        {Array.from({ length: 4 }).map((_, index) => (
+                            <div className="skeleton-row" key={index} />
+                        ))}
+                    </div>
+                ) : treatments.length > 0 ? (
+                    <div className="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Patient</th>
+                                    <th>Treatment</th>
+                                    <th>Cost</th>
+                                    <th>Status</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {treatments.map((t) => (
+                                    <tr key={t.id}>
+                                        <td>{t.id}</td>
+                                        <td>
+                                            <div className="patient-cell">
+                                                <span>{patientLookup.get(t.patient_id)?.name || "Unknown patient"}</span>
+                                                {patientLookup.get(t.patient_id)?.phone ? (
+                                                    <small>{patientLookup.get(t.patient_id).phone}</small>
+                                                ) : null}
+                                            </div>
+                                        </td>
+                                        <td>{t.treatment_name}</td>
+                                        <td>{t.cost}</td>
+                                        <td>
+                                            <select value={t.status || "Planned"} onChange={(e) => handleUpdateStatus(t, e.target.value)}>
+                                                <option value="Planned">Planned</option>
+                                                <option value="In Progress">In Progress</option>
+                                                <option value="Completed">Completed</option>
+                                            </select>
+                                        </td>
+                                        <td>{t.notes}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                ) : (
+                    <div className="empty-state">
+                        <h3>No treatments recorded.</h3>
+                        <p>Create your first treatment.</p>
+                    </div>
+                )}
+            </section>
         </div>
     );
 }

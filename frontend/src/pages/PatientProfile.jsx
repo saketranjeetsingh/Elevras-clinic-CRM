@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { get, post } from "../services/api";
 import PatientHeader from "../components/PatientHeader";
@@ -76,7 +76,7 @@ function PatientProfile() {
         bill: { amount: "", payment_status: "Pending", payment_method: "Cash" },
     });
 
-    const fetchProfile = async () => {
+    const fetchProfile = useCallback(async () => {
         setLoading(true);
         setError(null);
 
@@ -88,13 +88,17 @@ function PatientProfile() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [id]);
 
     useEffect(() => {
         if (id) {
-            fetchProfile();
+            const timer = window.setTimeout(() => {
+                void fetchProfile();
+            }, 0);
+
+            return () => window.clearTimeout(timer);
         }
-    }, [id]);
+    }, [fetchProfile, id]);
 
     const patient = profile?.patient || {};
     const appointments = profile?.appointments || [];

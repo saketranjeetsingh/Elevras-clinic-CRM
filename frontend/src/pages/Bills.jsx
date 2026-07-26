@@ -37,7 +37,11 @@ function Bills() {
     };
 
     useEffect(() => {
-        fetchBills();
+        const timer = window.setTimeout(() => {
+            void fetchBills();
+        }, 0);
+
+        return () => window.clearTimeout(timer);
     }, []);
 
     const patientLookup = useMemo(() => createPatientLookup(patients), [patients]);
@@ -88,77 +92,109 @@ function Bills() {
 
     return (
         <div className="page">
-            <h1>Bills</h1>
-
-            <form onSubmit={handleCreate} className="form-row" style={{ marginBottom: 12 }}>
-                <div style={{ width: "100%" }}>
-                    <PatientSelector
-                        selectedPatient={selectedPatient}
-                        onSelect={(patient) => {
-                            setSelectedPatient(patient);
-                            setForm((s) => ({ ...s, patient_id: patient.id }));
-                        }}
-                        onClear={() => {
-                            setSelectedPatient(null);
-                            setForm((s) => ({ ...s, patient_id: "" }));
-                        }}
-                    />
+            <div className="page-header page-header-card">
+                <div>
+                    <p className="eyebrow"><span className="eyebrow-icon"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14l-3-2-3 2-3-2-3 2-3-2Zm4 3h8v2H8Zm0 4h8v2H8Z" /></svg></span> Bills</p>
+                    <h1>Stay on top of payments</h1>
+                    <p className="page-subtitle">Create, review, and update invoices with a more structured workflow.</p>
                 </div>
-                <input name="amount" placeholder="Amount" value={form.amount} onChange={handleChange} />
-                <select name="payment_status" value={form.payment_status} onChange={handleChange}>
-                    <option value="Pending">Pending</option>
-                    <option value="Paid">Paid</option>
-                    <option value="Overdue">Overdue</option>
-                </select>
-                <select name="payment_method" value={form.payment_method} onChange={handleChange}>
-                    <option value="Cash">Cash</option>
-                    <option value="Card">Card</option>
-                    <option value="Insurance">Insurance</option>
-                </select>
-                <button className="btn" type="submit" disabled={!selectedPatient}>Create</button>
-            </form>
+            </div>
+
+            <section className="section-card form-card">
+                <div className="section-heading-row">
+                    <h2>Create bill</h2>
+                    <span className="muted-chip">Invoice entry</span>
+                </div>
+                <form onSubmit={handleCreate} className="form-grid">
+                    <div className="full-width">
+                        <PatientSelector
+                            selectedPatient={selectedPatient}
+                            onSelect={(patient) => {
+                                setSelectedPatient(patient);
+                                setForm((s) => ({ ...s, patient_id: patient.id }));
+                            }}
+                            onClear={() => {
+                                setSelectedPatient(null);
+                                setForm((s) => ({ ...s, patient_id: "" }));
+                            }}
+                        />
+                    </div>
+                    <input name="amount" placeholder="Amount" value={form.amount} onChange={handleChange} />
+                    <select name="payment_status" value={form.payment_status} onChange={handleChange}>
+                        <option value="Pending">Pending</option>
+                        <option value="Paid">Paid</option>
+                        <option value="Overdue">Overdue</option>
+                    </select>
+                    <select name="payment_method" value={form.payment_method} onChange={handleChange}>
+                        <option value="Cash">Cash</option>
+                        <option value="Card">Card</option>
+                        <option value="Insurance">Insurance</option>
+                    </select>
+                    <button className="btn" type="submit" disabled={!selectedPatient}>Create bill</button>
+                </form>
+            </section>
 
             <PatientSummaryCard patient={selectedPatient} />
 
-            {success && <p className="status-message success">{success}</p>}
-            {loading && <p className="status-message">Loading bills...</p>}
-            {error && <p className="status-message error">{error}</p>}
+            {success && <div className="status-card status-card-success"><span>{success}</span></div>}
+            {error && <div className="status-card status-card-error"><span>{error}</span></div>}
 
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Patient</th>
-                        <th>Amount</th>
-                        <th>Payment Status</th>
-                        <th>Payment Method</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {bills.map((b) => (
-                        <tr key={b.id}>
-                            <td>{b.id}</td>
-                            <td>
-                                <div className="patient-cell">
-                                    <span>{patientLookup.get(b.patient_id)?.name || "Unknown patient"}</span>
-                                    {patientLookup.get(b.patient_id)?.phone ? (
-                                        <small>{patientLookup.get(b.patient_id).phone}</small>
-                                    ) : null}
-                                </div>
-                            </td>
-                            <td>{b.amount}</td>
-                            <td>
-                                <select value={b.payment_status || "Pending"} onChange={(e) => handleUpdatePaymentStatus(b, e.target.value)}>
-                                    <option value="Pending">Pending</option>
-                                    <option value="Paid">Paid</option>
-                                    <option value="Overdue">Overdue</option>
-                                </select>
-                            </td>
-                            <td>{b.payment_method}</td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
+            <section className="section-card">
+                <div className="section-heading-row">
+                    <h2>Billing ledger</h2>
+                    <span className="muted-chip">{bills.length} entries</span>
+                </div>
+                {loading ? (
+                    <div className="table-skeleton">
+                        {Array.from({ length: 4 }).map((_, index) => (
+                            <div className="skeleton-row" key={index} />
+                        ))}
+                    </div>
+                ) : bills.length > 0 ? (
+                    <div className="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Patient</th>
+                                    <th>Amount</th>
+                                    <th>Payment Status</th>
+                                    <th>Payment Method</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {bills.map((b) => (
+                                    <tr key={b.id}>
+                                        <td>{b.id}</td>
+                                        <td>
+                                            <div className="patient-cell">
+                                                <span>{patientLookup.get(b.patient_id)?.name || "Unknown patient"}</span>
+                                                {patientLookup.get(b.patient_id)?.phone ? (
+                                                    <small>{patientLookup.get(b.patient_id).phone}</small>
+                                                ) : null}
+                                            </div>
+                                        </td>
+                                        <td>{b.amount}</td>
+                                        <td>
+                                            <select value={b.payment_status || "Pending"} onChange={(e) => handleUpdatePaymentStatus(b, e.target.value)}>
+                                                <option value="Pending">Pending</option>
+                                                <option value="Paid">Paid</option>
+                                                <option value="Overdue">Overdue</option>
+                                            </select>
+                                        </td>
+                                        <td>{b.payment_method}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                ) : (
+                    <div className="empty-state">
+                        <h3>No bills generated.</h3>
+                        <p>Generate your first bill.</p>
+                    </div>
+                )}
+            </section>
         </div>
     );
 }

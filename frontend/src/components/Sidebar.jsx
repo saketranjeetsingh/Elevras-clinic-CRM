@@ -1,6 +1,7 @@
-import React, { useContext } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useContext } from "react";
+import { NavLink, useNavigate } from "react-router-dom";
 import AuthContext from "../contexts/AuthContext";
+import Icon from "./Icon";
 
 export default function Sidebar() {
     const { user, logout } = useContext(AuthContext);
@@ -19,6 +20,14 @@ export default function Sidebar() {
         navigate("/");
     };
 
+    const navItems = [
+        { to: "/dashboard", label: "Dashboard", icon: "dashboard" },
+        { to: "/patients", label: "Patients", icon: "patients" },
+        { to: "/appointments", label: "Appointments", icon: "appointments" },
+        { to: "/treatments", label: "Treatments", icon: "treatments" },
+        { to: "/bills", label: "Bills", icon: "bills" },
+    ];
+
     return (
         <aside className="sidebar">
             <div className="sidebar-header">
@@ -32,11 +41,12 @@ export default function Sidebar() {
             </div>
 
             <nav className="sidebar-nav">
-                <Link to="/dashboard">Dashboard</Link>
-                <Link to="/patients">Patients</Link>
-                <Link to="/appointments">Appointments</Link>
-                <Link to="/treatments">Treatments</Link>
-                <Link to="/bills">Bills</Link>
+                {navItems.map((item) => (
+                    <NavLink key={item.to} to={item.to} className={({ isActive }) => (isActive ? "sidebar-link active" : "sidebar-link")}>
+                        <Icon name={item.icon} size={16} />
+                        <span>{item.label}</span>
+                    </NavLink>
+                ))}
             </nav>
 
             <div className="sidebar-footer">

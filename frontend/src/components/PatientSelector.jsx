@@ -4,7 +4,7 @@ import { get } from "../services/api";
 
 function PatientSelector({ selectedPatient, onSelect, onClear }) {
     const [patients, setPatients] = useState([]);
-    const [query, setQuery] = useState("");
+    const [searchText, setSearchText] = useState("");
     const [isOpen, setIsOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -25,16 +25,17 @@ function PatientSelector({ selectedPatient, onSelect, onClear }) {
             }
         };
 
-        fetchPatients();
+        const timer = window.setTimeout(() => {
+            void fetchPatients();
+        }, 0);
+
+        return () => window.clearTimeout(timer);
     }, []);
 
-    useEffect(() => {
-        if (selectedPatient) {
-            setQuery(`${selectedPatient.name || "Patient"} • ${selectedPatient.phone || "No phone provided"}`);
-        } else {
-            setQuery("");
-        }
-    }, [selectedPatient]);
+    const selectedLabel = selectedPatient
+        ? `${selectedPatient.name || "Patient"} • ${selectedPatient.phone || "No phone provided"}`
+        : "";
+    const inputValue = selectedPatient ? selectedLabel : searchText;
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -48,7 +49,7 @@ function PatientSelector({ selectedPatient, onSelect, onClear }) {
     }, []);
 
     const filteredPatients = useMemo(() => {
-        const normalizedQuery = query.trim().toLowerCase();
+        const normalizedQuery = inputValue.trim().toLowerCase();
         if (!normalizedQuery) {
             return patients;
         }
@@ -58,21 +59,21 @@ function PatientSelector({ selectedPatient, onSelect, onClear }) {
             const phone = (patient.phone || "").toLowerCase();
             return name.includes(normalizedQuery) || phone.includes(normalizedQuery);
         });
-    }, [patients, query]);
+    }, [inputValue, patients]);
 
     const handleSelect = (patient) => {
         onSelect?.(patient);
-        setQuery(`${patient.name || "Patient"} • ${patient.phone || "No phone provided"}`);
+        setSearchText(`${patient.name || "Patient"} • ${patient.phone || "No phone provided"}`);
         setIsOpen(false);
     };
 
     const handleClear = () => {
-        setQuery("");
+        setSearchText("");
         setIsOpen(false);
         onClear?.();
     };
 
-    const showSelectionHint = Boolean(query.trim()) && !selectedPatient;
+    const showSelectionHint = Boolean(inputValue.trim()) && !selectedPatient;
 
     return (
         <div className="patient-selector" ref={wrapperRef}>
@@ -80,9 +81,9 @@ function PatientSelector({ selectedPatient, onSelect, onClear }) {
             <div className="patient-selector-input-wrap">
                 <input
                     type="text"
-                    value={query}
+                    value={inputValue}
                     onChange={(e) => {
-                        setQuery(e.target.value);
+                        setSearchText(e.target.value);
                         setIsOpen(true);
                     }}
                     onFocus={() => setIsOpen(true)}

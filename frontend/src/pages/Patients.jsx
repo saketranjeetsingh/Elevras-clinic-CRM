@@ -40,7 +40,11 @@ function Patients() {
     };
 
     useEffect(() => {
-        fetchPatients();
+        const timer = window.setTimeout(() => {
+            void fetchPatients();
+        }, 0);
+
+        return () => window.clearTimeout(timer);
     }, []);
 
     const handleChange = (e) => {
@@ -181,68 +185,107 @@ function Patients() {
 
     return (
         <div className="page">
-            <h1>Patients</h1>
+            <div className="page-header page-header-card">
+                <div>
+                    <p className="eyebrow"><span className="eyebrow-icon"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M16 8a3 3 0 1 0-3-3 3 3 0 0 0 3 3Zm-8 0a3 3 0 1 0-3-3 3 3 0 0 0 3 3Zm0 2c-2.8 0-5 1.6-5 3.6V16h10v-2.4C13 11.6 10.8 10 8 10Zm8 0c-.7 0-1.4.1-2 .3a4.2 4.2 0 0 1 0 3.7c1.4.4 2 1 2 1.6V16h4v-2.4c0-2-2.2-3.6-4-3.6Z" /></svg></span> Patients</p>
+                    <h1>Keep your patient roster organised</h1>
+                    <p className="page-subtitle">Capture personal details, treatment history, and the next best follow-up in one place.</p>
+                </div>
+            </div>
 
-            <form onSubmit={handleCreate} className="form-row" style={{ marginBottom: 12 }}>
-                <input name="name" placeholder="Name" value={form.name} onChange={handleChange} />
-                <input name="phone" placeholder="Phone" value={form.phone} onChange={handleChange} />
-                <input name="email" placeholder="Email" value={form.email} onChange={handleChange} />
-                <input name="age" type="number" placeholder="Age" value={form.age} onChange={handleChange} />
-                <input name="gender" placeholder="Gender" value={form.gender} onChange={handleChange} />
-                <input name="address" placeholder="Address" value={form.address} onChange={handleChange} />
-                <input name="blood_group" placeholder="Blood Group" value={form.blood_group} onChange={handleChange} />
-                <input name="medical_history" placeholder="Medical History" value={form.medical_history} onChange={handleChange} />
-                <input name="notes" placeholder="Notes" value={form.notes} onChange={handleChange} />
-                <input name="last_treatment" type="date" value={form.last_treatment} onChange={handleChange} />
-                <button className="btn" type="submit">{editingId ? "Save" : "Create"}</button>
-                {editingId && <button type="button" className="btn" onClick={() => { setEditingId(null); setForm({ name: "", phone: "", email: "", age: "", gender: "", address: "", blood_group: "", medical_history: "", notes: "", last_treatment: "" }); }}>Cancel</button>}
-            </form>
+            <section className="section-card form-card">
+                <div className="section-heading-row">
+                    <h2>{editingId ? "Update patient" : "Add patient"}</h2>
+                    <span className="muted-chip">Patient details</span>
+                </div>
+                <form onSubmit={handleCreate} className="form-grid">
+                    <input name="name" placeholder="Name" value={form.name} onChange={handleChange} />
+                    <input name="phone" placeholder="Phone" value={form.phone} onChange={handleChange} />
+                    <input name="email" placeholder="Email" value={form.email} onChange={handleChange} />
+                    <input name="age" type="number" placeholder="Age" value={form.age} onChange={handleChange} />
+                    <input name="gender" placeholder="Gender" value={form.gender} onChange={handleChange} />
+                    <input name="address" placeholder="Address" value={form.address} onChange={handleChange} />
+                    <input name="blood_group" placeholder="Blood Group" value={form.blood_group} onChange={handleChange} />
+                    <input name="medical_history" placeholder="Medical History" value={form.medical_history} onChange={handleChange} />
+                    <input name="notes" placeholder="Notes" value={form.notes} onChange={handleChange} />
+                    <input name="last_treatment" type="date" value={form.last_treatment} onChange={handleChange} />
+                    <div className="full-width action-row">
+                        <button className="btn" type="submit">{editingId ? "Save changes" : "Create patient"}</button>
+                        {editingId && <button type="button" className="btn secondary" onClick={() => { setEditingId(null); setForm({ name: "", phone: "", email: "", age: "", gender: "", address: "", blood_group: "", medical_history: "", notes: "", last_treatment: "" }); }}>Cancel</button>}
+                    </div>
+                </form>
+            </section>
 
-            <form onSubmit={handleSearch} className="search-row" style={{ marginBottom: 12 }}>
-                <input placeholder="Search by name, phone, email, or treatment" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
-                <button className="btn" type="submit">Search</button>
-                <button className="btn" type="button" onClick={() => { setSearchQuery(""); setPatients(allPatients); }} style={{ marginLeft: 8 }}>Clear</button>
-            </form>
+            <section className="section-card">
+                <form onSubmit={handleSearch} className="search-row">
+                    <input placeholder="Search by name, phone, email, or treatment" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                    <button className="btn" type="submit">Search</button>
+                    <button className="btn secondary" type="button" onClick={() => { setSearchQuery(""); setPatients(allPatients); }}>Clear</button>
+                </form>
+            </section>
 
-            {success && <p className="status-message success">{success}</p>}
-            {loading && <p className="status-message">Loading patients...</p>}
-            {error && <p className="status-message error">{error}</p>}
+            {success && <div className="status-card status-card-success"><span>{success}</span></div>}
+            {error && <div className="status-card status-card-error"><span>{error}</span></div>}
 
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Name</th>
-                        <th>Phone</th>
-                        <th>Email</th>
-                        <th>Age</th>
-                        <th>Gender</th>
-                        <th>Last Treatment</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {patients.map((p) => (
-                        <tr key={p.id}>
-                            <td>
-                                <Link to={`/patients/${p.id}`} className="patient-link">{p.id}</Link>
-                            </td>
-                            <td>
-                                <Link to={`/patients/${p.id}`} className="patient-link">{p.name}</Link>
-                            </td>
-                            <td>{p.phone}</td>
-                            <td>{p.email}</td>
-                            <td>{p.age}</td>
-                            <td>{p.gender}</td>
-                            <td>{p.last_treatment}</td>
-                            <td>
-                                <button className="btn" onClick={() => handleEdit(p)}>Edit</button>
-                                <button className="btn" onClick={() => handleDelete(p.id)} style={{ marginLeft: 6 }}>Delete</button>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
+            <section className="section-card">
+                <div className="section-heading-row">
+                    <h2>Patient roster</h2>
+                    <span className="muted-chip">{patients.length} patients</span>
+                </div>
+                {loading ? (
+                    <div className="table-skeleton">
+                        {Array.from({ length: 4 }).map((_, index) => (
+                            <div className="skeleton-row" key={index} />
+                        ))}
+                    </div>
+                ) : patients.length > 0 ? (
+                    <div className="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Phone</th>
+                                    <th>Email</th>
+                                    <th>Age</th>
+                                    <th>Gender</th>
+                                    <th>Last Treatment</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {patients.map((p) => (
+                                    <tr key={p.id}>
+                                        <td>
+                                            <Link to={`/patients/${p.id}`} className="patient-link">{p.id}</Link>
+                                        </td>
+                                        <td>
+                                            <Link to={`/patients/${p.id}`} className="patient-link">{p.name}</Link>
+                                        </td>
+                                        <td>{p.phone}</td>
+                                        <td>{p.email}</td>
+                                        <td>{p.age}</td>
+                                        <td>{p.gender}</td>
+                                        <td>{p.last_treatment}</td>
+                                        <td>
+                                            <div className="action-group">
+                                                <button className="btn secondary" onClick={() => handleEdit(p)}>Edit</button>
+                                                <button className="btn danger" onClick={() => handleDelete(p.id)}>Delete</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                ) : (
+                    <div className="empty-state">
+                        <h3>No patients found.</h3>
+                        <p>Add your first patient.</p>
+                        <button className="btn" type="button" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>Add patient</button>
+                    </div>
+                )}
+            </section>
         </div>
     );
 }

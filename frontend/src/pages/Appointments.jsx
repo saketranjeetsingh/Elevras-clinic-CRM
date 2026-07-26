@@ -38,7 +38,11 @@ function Appointments() {
     };
 
     useEffect(() => {
-        fetchAppointments();
+        const timer = window.setTimeout(() => {
+            void fetchAppointments();
+        }, 0);
+
+        return () => window.clearTimeout(timer);
     }, []);
 
     const patientLookup = useMemo(() => createPatientLookup(patients), [patients]);
@@ -90,76 +94,110 @@ function Appointments() {
 
     return (
         <div className="page">
-            <h1>Appointments</h1>
-
-            <form onSubmit={handleCreate} className="form-row" style={{ marginBottom: 12 }}>
-                <div style={{ width: "100%" }}>
-                    <PatientSelector
-                        selectedPatient={selectedPatient}
-                        onSelect={(patient) => {
-                            setSelectedPatient(patient);
-                            setForm((s) => ({ ...s, patient_id: patient.id }));
-                        }}
-                        onClear={() => {
-                            setSelectedPatient(null);
-                            setForm((s) => ({ ...s, patient_id: "" }));
-                        }}
-                    />
+            <div className="page-header page-header-card">
+                <div>
+                    <p className="eyebrow"><span className="eyebrow-icon"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M7 3v2H5a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2V3h-2v2H9V3Zm12 6H5v9h14Z" /></svg></span> Appointments</p>
+                    <h1>Plan the day with clarity</h1>
+                    <p className="page-subtitle">Create and manage appointments without losing sight of the patient context.</p>
                 </div>
-                <input name="doctor_name" placeholder="Doctor Name" value={form.doctor_name} onChange={handleChange} />
-                <input name="appointment_date" type="date" value={form.appointment_date} onChange={handleChange} />
-                <select name="status" value={form.status} onChange={handleChange}>
-                    <option value="Scheduled">Scheduled</option>
-                    <option value="Completed">Completed</option>
-                    <option value="Cancelled">Cancelled</option>
-                </select>
-                <input name="notes" placeholder="Notes" value={form.notes} onChange={handleChange} />
-                <button className="btn" type="submit" disabled={!selectedPatient}>Create</button>
-            </form>
+            </div>
+
+            <section className="section-card form-card">
+                <div className="section-heading-row">
+                    <h2>Create appointment</h2>
+                    <span className="muted-chip">Quick entry</span>
+                </div>
+                <form onSubmit={handleCreate} className="form-grid">
+                    <div className="full-width">
+                        <PatientSelector
+                            selectedPatient={selectedPatient}
+                            onSelect={(patient) => {
+                                setSelectedPatient(patient);
+                                setForm((s) => ({ ...s, patient_id: patient.id }));
+                            }}
+                            onClear={() => {
+                                setSelectedPatient(null);
+                                setForm((s) => ({ ...s, patient_id: "" }));
+                            }}
+                        />
+                    </div>
+                    <input name="doctor_name" placeholder="Doctor Name" value={form.doctor_name} onChange={handleChange} />
+                    <input name="appointment_date" type="date" value={form.appointment_date} onChange={handleChange} />
+                    <select name="status" value={form.status} onChange={handleChange}>
+                        <option value="Scheduled">Scheduled</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Cancelled">Cancelled</option>
+                    </select>
+                    <input name="notes" placeholder="Notes" value={form.notes} onChange={handleChange} />
+                    <button className="btn" type="submit" disabled={!selectedPatient}>Create appointment</button>
+                </form>
+            </section>
 
             <PatientSummaryCard patient={selectedPatient} />
 
-            {success && <p className="status-message success">{success}</p>}
-            {loading && <p className="status-message">Loading appointments...</p>}
-            {error && <p className="status-message error">{error}</p>}
+            {success && <div className="status-card status-card-success"><span>{success}</span></div>}
+            {error && <div className="status-card status-card-error"><span>{error}</span></div>}
 
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Patient</th>
-                        <th>Doctor</th>
-                        <th>Date</th>
-                        <th>Status</th>
-                        <th>Notes</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {appointments.map((a) => (
-                        <tr key={a.id}>
-                            <td>{a.id}</td>
-                            <td>
-                                <div className="patient-cell">
-                                    <span>{patientLookup.get(a.patient_id)?.name || "Unknown patient"}</span>
-                                    {patientLookup.get(a.patient_id)?.phone ? (
-                                        <small>{patientLookup.get(a.patient_id).phone}</small>
-                                    ) : null}
-                                </div>
-                            </td>
-                            <td>{a.doctor_name}</td>
-                            <td>{a.appointment_date}</td>
-                            <td>
-                                <select value={a.status || "Scheduled"} onChange={(e) => handleUpdateStatus(a, e.target.value)}>
-                                    <option value="Scheduled">Scheduled</option>
-                                    <option value="Completed">Completed</option>
-                                    <option value="Cancelled">Cancelled</option>
-                                </select>
-                            </td>
-                            <td>{a.notes}</td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
+            <section className="section-card">
+                <div className="section-heading-row">
+                    <h2>Appointment schedule</h2>
+                    <span className="muted-chip">{appointments.length} total</span>
+                </div>
+
+                {loading ? (
+                    <div className="table-skeleton">
+                        {Array.from({ length: 4 }).map((_, index) => (
+                            <div className="skeleton-row" key={index} />
+                        ))}
+                    </div>
+                ) : appointments.length > 0 ? (
+                    <div className="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Patient</th>
+                                    <th>Doctor</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {appointments.map((a) => (
+                                    <tr key={a.id}>
+                                        <td>{a.id}</td>
+                                        <td>
+                                            <div className="patient-cell">
+                                                <span>{patientLookup.get(a.patient_id)?.name || "Unknown patient"}</span>
+                                                {patientLookup.get(a.patient_id)?.phone ? (
+                                                    <small>{patientLookup.get(a.patient_id).phone}</small>
+                                                ) : null}
+                                            </div>
+                                        </td>
+                                        <td>{a.doctor_name}</td>
+                                        <td>{a.appointment_date}</td>
+                                        <td>
+                                            <select value={a.status || "Scheduled"} onChange={(e) => handleUpdateStatus(a, e.target.value)}>
+                                                <option value="Scheduled">Scheduled</option>
+                                                <option value="Completed">Completed</option>
+                                                <option value="Cancelled">Cancelled</option>
+                                            </select>
+                                        </td>
+                                        <td>{a.notes}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                ) : (
+                    <div className="empty-state">
+                        <h3>No appointments yet.</h3>
+                        <p>Create your first appointment.</p>
+                        <button className="btn" type="button" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>Create appointment</button>
+                    </div>
+                )}
+            </section>
         </div>
     );
 }
