@@ -1,8 +1,10 @@
 from sqlalchemy import Column
+from sqlalchemy import DateTime
 from sqlalchemy import Integer
 from sqlalchemy import String
 from sqlalchemy import ForeignKey
 from sqlalchemy import UniqueConstraint
+from sqlalchemy import func
 
 from app.database import Base
 
@@ -19,7 +21,8 @@ class Patient(Base):
 
     doctor_id = Column(
         Integer,
-        ForeignKey("doctors.id")
+        ForeignKey("doctors.id", ondelete="CASCADE"),
+        nullable=False,
     )
 
     name = Column(String, nullable=False)
@@ -41,3 +44,11 @@ class Patient(Base):
     notes = Column(String)
 
     last_treatment = Column(String)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.models.bill import Bill
 from app.schemas.bill import BillCreate
+from app.schemas.bill import BillUpdate
 
 from app.dependencies import get_current_doctor
 from app.dependencies import get_patient_for_current_doctor
@@ -78,9 +79,9 @@ def get_bills(
 
 
 @router.put("/{bill_id}")
-def update_bill_status(
+def update_bill(
     bill_id: int,
-    payment_status: str,
+    bill_data: BillUpdate,
     current_doctor: dict = Depends(
         get_current_doctor
     ),
@@ -98,10 +99,41 @@ def update_bill_status(
             detail="Bill not found"
         )
 
-    bill.payment_status = payment_status
+    if bill_data.patient_id is not None:
+        get_patient_for_current_doctor(bill_data.patient_id, current_doctor, db)
+        bill.patient_id = bill_data.patient_id
+
+    if bill_data.amount is not None:
+        bill.amount = bill_data.amount
+
+    if bill_data.payment_status is not None:
+        bill.payment_status = bill_data.payment_status
+
+    if bill_data.payment_method is not None:
+        bill.payment_method = bill_data.payment_method
 
     db.commit()
 
     db.refresh(bill)
 
     return bill
+
+
+@router.delete("/{bill_id}")
+def delete_bill(
+    bill_id: int,
+    current_doctor: dict = Depends(get_current_doctor),
+    db: Session = Depends(get_db),
+):
+    bill = db.query(Bill).filter(
+        Bill.id == bill_id,
+        Bill.doctor_id == current_doctor["doctor_id"],
+    ).first()
+
+    if not bill:
+        raise HTTPException(status_code=404, detail="Bill not found")
+
+    db.delete(bill)
+    db.commit()
+
+    return {"message": "Bill deleted successfully"}

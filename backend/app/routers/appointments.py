@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.models.appointment import Appointment
 from app.schemas.appointment import AppointmentCreate
+from app.schemas.appointment import AppointmentUpdate
 from app.dependencies import get_current_doctor
 from app.dependencies import get_patient_for_current_doctor
 
@@ -78,9 +79,9 @@ def get_appointments(
 
 
 @router.put("/{appointment_id}")
-def update_appointment_status(
+def update_appointment(
     appointment_id: int,
-    status: str,
+    appointment_data: AppointmentUpdate,
     current_doctor: dict = Depends(
         get_current_doctor
     ),
@@ -99,10 +100,44 @@ def update_appointment_status(
             detail="Appointment not found"
         )
 
-    appointment.status = status
+    if appointment_data.patient_id is not None:
+        get_patient_for_current_doctor(appointment_data.patient_id, current_doctor, db)
+        appointment.patient_id = appointment_data.patient_id
+
+    if appointment_data.doctor_name is not None:
+        appointment.doctor_name = appointment_data.doctor_name
+
+    if appointment_data.appointment_date is not None:
+        appointment.appointment_date = appointment_data.appointment_date
+
+    if appointment_data.status is not None:
+        appointment.status = appointment_data.status
+
+    if appointment_data.notes is not None:
+        appointment.notes = appointment_data.notes
 
     db.commit()
 
     db.refresh(appointment)
 
     return appointment
+
+
+@router.delete("/{appointment_id}")
+def delete_appointment(
+    appointment_id: int,
+    current_doctor: dict = Depends(get_current_doctor),
+    db: Session = Depends(get_db),
+):
+    appointment = db.query(Appointment).filter(
+        Appointment.id == appointment_id,
+        Appointment.doctor_id == current_doctor["doctor_id"],
+    ).first()
+
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Appointment not found")
+
+    db.delete(appointment)
+    db.commit()
+
+    return {"message": "Appointment deleted successfully"}

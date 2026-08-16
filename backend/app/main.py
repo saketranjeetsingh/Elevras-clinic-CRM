@@ -53,6 +53,29 @@ def ensure_schema():
                     )
                 )
 
+        # Add common data-integrity columns if missing
+        for table_name, columns in {
+            "doctors": ["created_at", "updated_at"],
+            "patients": ["created_at", "updated_at", "address", "blood_group", "medical_history"],
+            "appointments": ["created_at", "updated_at"],
+            "treatments": ["created_at", "updated_at", "treatment_date"],
+            "bills": ["created_at", "updated_at"],
+        }.items():
+            if table_name not in existing_tables:
+                continue
+
+            existing_columns = {col["name"] for col in inspector.get_columns(table_name)}
+            for column_name in columns:
+                if column_name not in existing_columns:
+                    sql_type = "TIMESTAMP WITH TIME ZONE" if "at" in column_name else "TEXT"
+                    if column_name == "treatment_date":
+                        sql_type = "TIMESTAMP WITH TIME ZONE"
+                    conn.execute(
+                        text(
+                            f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS {column_name} {sql_type}"
+                        )
+                    )
+
         # Add patient profile columns if missing
         if "patients" in existing_tables:
             patient_columns = {col["name"] for col in inspector.get_columns("patients")}

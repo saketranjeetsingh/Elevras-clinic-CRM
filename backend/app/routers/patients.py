@@ -1,3 +1,6 @@
+from datetime import datetime
+from datetime import timezone
+
 from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import HTTPException
@@ -167,6 +170,20 @@ def get_patient_profile(
         if (bill.payment_status or "").lower() != "paid"
     )
 
+    latest_treatment_name = patient.last_treatment
+    if treatments:
+        dated_treatments = [
+            treatment for treatment in treatments if treatment.treatment_date is not None
+        ]
+        latest_treatment = max(
+            dated_treatments or treatments,
+            key=lambda treatment: (
+                treatment.treatment_date or datetime.min.replace(tzinfo=timezone.utc)
+            ),
+        )
+        latest_treatment_name = latest_treatment.treatment_name
+        patient.last_treatment = latest_treatment_name
+
     return {
         "patient": patient,
         "appointments": appointments,
@@ -177,6 +194,7 @@ def get_patient_profile(
             "treatments": len(treatments),
             "bills": len(bills),
             "pending_amount": pending_amount,
+            "last_treatment": latest_treatment_name,
         },
     }
 

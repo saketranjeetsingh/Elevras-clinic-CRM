@@ -54,17 +54,26 @@ def get_dashboard_stats(
         Bill.doctor_id == doctor_id
     ).count()
 
-    total_revenue = db.query(
-        func.sum(Bill.amount)
-    ).filter(Bill.doctor_id == doctor_id).scalar()
+    paid_bills = db.query(Bill).filter(
+        Bill.doctor_id == doctor_id,
+        (Bill.payment_status or "").lower() == "paid"
+    ).all()
 
-    if total_revenue is None:
-        total_revenue = 0
+    pending_bills = db.query(Bill).filter(
+        Bill.doctor_id == doctor_id,
+        (Bill.payment_status or "").lower() != "paid"
+    ).all()
+
+    total_revenue = sum(bill.amount or 0 for bill in paid_bills)
+    pending_revenue = sum(bill.amount or 0 for bill in pending_bills)
 
     return {
         "total_patients": total_patients,
         "total_appointments": total_appointments,
         "total_treatments": total_treatments,
         "total_bills": total_bills,
-        "total_revenue": total_revenue
+        "paid_bills": len(paid_bills),
+        "pending_bills": len(pending_bills),
+        "total_revenue": total_revenue,
+        "pending_revenue": pending_revenue,
     }
