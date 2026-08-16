@@ -11,7 +11,6 @@ class PatientCreate(BaseModel):
     blood_group: str | None = None
     medical_history: str | None = None
     notes: str | None = None
-    last_treatment: str | None = None
 
 
 class PatientUpdate(BaseModel):
@@ -24,7 +23,6 @@ class PatientUpdate(BaseModel):
     blood_group: str | None = None
     medical_history: str | None = None
     notes: str | None = None
-    last_treatment: str | None = None
 
 
 class PatientResponse(BaseModel):

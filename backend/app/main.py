@@ -87,11 +87,20 @@ def ensure_schema():
                         )
                     )
 
-        # Update existing rows only if the table exists
-        for table in ["patients", "appointments", "treatments", "bills"]:
-            if table in existing_tables:
-                conn.execute(
-                    text(f"UPDATE {table} SET doctor_id = 1 WHERE doctor_id IS NULL")
+        # Preserve orphaned data safely instead of silently assigning it to doctor 1.
+        for table_name in ["patients", "appointments", "treatments", "bills"]:
+            if table_name not in existing_tables:
+                continue
+
+            null_count = conn.execute(
+                text(f"SELECT COUNT(*) FROM {table_name} WHERE doctor_id IS NULL")
+            ).scalar()
+
+            if null_count:
+                logger.warning(
+                    "Found %s rows in %s with NULL doctor_id; leaving them untouched to preserve multi-doctor isolation.",
+                    null_count,
+                    table_name,
                 )
 
         # Patient unique constraints

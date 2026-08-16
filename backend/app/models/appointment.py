@@ -16,7 +16,7 @@ class Appointment(Base):
 
     patient_id = Column(
         Integer,
-        ForeignKey("patients.id", ondelete="CASCADE"),
+        ForeignKey("patients.id", ondelete="RESTRICT"),
         nullable=False,
     )
     doctor_id = Column(

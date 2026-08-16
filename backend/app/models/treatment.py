@@ -1,4 +1,5 @@
 from datetime import datetime
+from datetime import timezone
 
 from sqlalchemy import Column
 from sqlalchemy import DateTime
@@ -18,7 +19,7 @@ class Treatment(Base):
 
     patient_id = Column(
         Integer,
-        ForeignKey("patients.id", ondelete="CASCADE"),
+        ForeignKey("patients.id", ondelete="RESTRICT"),
         nullable=False,
     )
     doctor_id = Column(
@@ -28,7 +29,11 @@ class Treatment(Base):
     )
 
     treatment_name = Column(String, nullable=False)
-    treatment_date = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=True)
+    treatment_date = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=True,
+    )
 
     cost = Column(Integer)
 

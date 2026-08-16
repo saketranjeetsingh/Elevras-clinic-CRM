@@ -67,7 +67,6 @@ def create_patient(
         blood_group=patient.blood_group,
         medical_history=patient.medical_history,
         notes=patient.notes,
-        last_treatment=patient.last_treatment
     )
 
     db.add(new_patient)
@@ -86,9 +85,18 @@ def get_patients(
     db: Session = Depends(get_db)
 ):
 
-    return db.query(Patient).filter(
+    patients = db.query(Patient).filter(
         Patient.doctor_id == current_doctor["doctor_id"]
     ).all()
+
+    for patient in patients:
+        latest_treatment = db.query(Treatment).filter(
+            Treatment.patient_id == patient.id,
+            Treatment.doctor_id == current_doctor["doctor_id"],
+        ).order_by(Treatment.treatment_date.desc().nullslast(), Treatment.id.desc()).first()
+        patient.last_treatment = latest_treatment.treatment_name if latest_treatment else None
+
+    return patients
 
 
 @router.get("/{patient_id}/treatments")
@@ -290,9 +298,6 @@ def update_patient(
     if updated_patient.notes is not None:
         patient.notes = updated_patient.notes
 
-    if updated_patient.last_treatment is not None:
-        patient.last_treatment = updated_patient.last_treatment
-
     db.commit()
     db.refresh(patient)
 
@@ -317,17 +322,24 @@ def delete_patient(
             detail="Patient not found"
         )
 
-    db.query(Appointment).filter(
-        Appointment.patient_id == patient_id
-    ).delete(synchronize_session=False)
+    appointment_count = db.query(Appointment.id).filter(
+        Appointment.patient_id == patient_id,
+        Appointment.doctor_id == current_doctor["doctor_id"],
+    ).count()
+    treatment_count = db.query(Treatment.id).filter(
+        Treatment.patient_id == patient_id,
+        Treatment.doctor_id == current_doctor["doctor_id"],
+    ).count()
+    bill_count = db.query(Bill.id).filter(
+        Bill.patient_id == patient_id,
+        Bill.doctor_id == current_doctor["doctor_id"],
+    ).count()
 
-    db.query(Treatment).filter(
-        Treatment.patient_id == patient_id
-    ).delete(synchronize_session=False)
-
-    db.query(Bill).filter(
-        Bill.patient_id == patient_id
-    ).delete(synchronize_session=False)
+    if appointment_count or treatment_count or bill_count:
+        raise HTTPException(
+            status_code=409,
+            detail="Cannot delete patient with existing appointments, treatments, or bills.",
+        )
 
     db.delete(patient)
     db.commit()
