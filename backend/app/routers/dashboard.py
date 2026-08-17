@@ -56,12 +56,12 @@ def get_dashboard_stats(
 
     paid_bills = db.query(Bill).filter(
         Bill.doctor_id == doctor_id,
-        (Bill.payment_status or "").lower() == "paid"
+        func.lower(Bill.payment_status) == "paid"
     ).all()
 
     pending_bills = db.query(Bill).filter(
         Bill.doctor_id == doctor_id,
-        (Bill.payment_status or "").lower() != "paid"
+        func.lower(Bill.payment_status) != "paid"
     ).all()
 
     total_revenue = sum(bill.amount or 0 for bill in paid_bills)
