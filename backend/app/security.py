@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from passlib.context import CryptContext
 
 
-# Load environment (backend/.env) and read SECRET_KEY
+#Load environment (backend/.env) and read SECRET_KEY
 base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 dotenv_path = os.path.join(base_dir, ".env")
 load_dotenv(dotenv_path)
