@@ -1,9 +1,14 @@
+import csv
+import io
+import re
 from datetime import datetime
 from datetime import timezone
 
 from fastapi import APIRouter
 from fastapi import Depends
+from fastapi import File
 from fastapi import HTTPException
+from fastapi import UploadFile
 
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
@@ -25,6 +30,186 @@ router = APIRouter(
     tags=["Patients"]
 )
 
+FIELD_ALIASES = {
+    "name": {"name", "patientname", "fullname"},
+    "phone": {"phone", "phonenumber", "mobile", "mobilenumber", "contactnumber"},
+    "email": {"email", "emailaddress", "patientemail"},
+    "age": {"age", "years"},
+    "gender": {"gender", "sex"},
+    "address": {"address", "streetaddress"},
+    "blood_group": {"bloodgroup", "blood_group", "bloodtype"},
+    "medical_history": {"medicalhistory", "medical_history", "history"},
+    "notes": {"notes", "remark", "remarks"},
+    "last_treatment": {"lasttreatment", "last_treatment", "treatmentdate", "lastvisit"},
+}
+
+
+def _normalize_header(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", (value or "").strip().lower())
+
+
+def _coerce_patient_row(raw_row: dict, header_map: dict) -> dict:
+    normalized = {}
+    for field in [
+        "name",
+        "phone",
+        "email",
+        "age",
+        "gender",
+        "address",
+        "blood_group",
+        "medical_history",
+        "notes",
+        "last_treatment",
+    ]:
+        source_header = header_map.get(field)
+        value = raw_row.get(source_header, "") if source_header else ""
+        if isinstance(value, str):
+            normalized[field] = value.strip()
+        else:
+            normalized[field] = value
+    return normalized
+
+
+def _validate_patient_row(row: dict) -> tuple[bool, list[str]]:
+    errors = []
+
+    name = str(row.get("name") or "").strip()
+    if not name:
+        errors.append("name is required")
+
+    phone = str(row.get("phone") or "").strip()
+    if not phone:
+        errors.append("phone is required")
+    elif len(phone) < 4:
+        errors.append("phone is invalid")
+
+    email = str(row.get("email") or "").strip()
+    if not email:
+        errors.append("email is required")
+    elif "@" not in email or "." not in email.split("@")[-1]:
+        errors.append("email is invalid")
+
+    age_value = row.get("age")
+    if age_value not in (None, ""):
+        try:
+            age_int = int(str(age_value).strip())
+            if age_int < 0 or age_int > 200:
+                raise ValueError
+        except (TypeError, ValueError):
+            errors.append("age must be a valid number")
+
+    return not errors, errors
+
+
+def _find_patient_duplicate(db: Session, doctor_id: int, phone: str, email: str | None):
+    contact_conditions = []
+    if phone:
+        contact_conditions.append(Patient.phone == phone)
+    if email:
+        contact_conditions.append(Patient.email == email)
+    if not contact_conditions:
+        return None
+    return db.query(Patient).filter(
+        Patient.doctor_id == doctor_id,
+        or_(*contact_conditions)
+    ).first()
+
+
+def _parse_csv_preview(db: Session, current_doctor: dict, csv_text: str):
+    if not csv_text or not csv_text.strip():
+        return {
+            "total_rows": 0,
+            "valid_rows": 0,
+            "invalid_rows": 0,
+            "preview_rows": [],
+            "duplicates": [],
+            "mapped_columns": {},
+            "unmapped_columns": [],
+            "errors": [],
+        }
+
+    reader = csv.reader(io.StringIO(csv_text, newline=""))
+    rows = list(reader)
+    if not rows or not rows[0]:
+        return {
+            "total_rows": 0,
+            "valid_rows": 0,
+            "invalid_rows": 0,
+            "preview_rows": [],
+            "duplicates": [],
+            "mapped_columns": {},
+            "unmapped_columns": [],
+            "errors": [],
+        }
+
+    header = rows[0]
+    all_aliases = {alias for aliases in FIELD_ALIASES.values() for alias in aliases}
+    header_map = {}
+    for field, aliases in FIELD_ALIASES.items():
+        for index, header_name in enumerate(header):
+            if _normalize_header(header_name) in aliases:
+                header_map[header_name] = field
+                break
+
+    unmapped_columns = [
+        column for column in header
+        if _normalize_header(column) not in all_aliases
+    ]
+
+    total_rows = len(rows) - 1
+    valid_rows = 0
+    invalid_rows = 0
+    duplicates = []
+    preview_rows = []
+    errors = []
+
+    for row_number, row in enumerate(rows[1:], start=1):
+        if len(row) < len(header):
+            row = row + [""] * (len(header) - len(row))
+
+        raw_row = {header[index]: row[index] if index < len(row) else "" for index in range(len(header))}
+        patient_row = _coerce_patient_row(raw_row, {field: header for header, field in header_map.items()})
+
+        if not any(str(value or "").strip() for value in patient_row.values()):
+            errors.append({"row_number": row_number, "errors": ["empty row"]})
+            invalid_rows += 1
+            continue
+
+        valid, validation_errors = _validate_patient_row(patient_row)
+        if not valid:
+            errors.append({"row_number": row_number, "errors": validation_errors})
+            invalid_rows += 1
+            continue
+
+        phone = str(patient_row.get("phone") or "").strip()
+        email = str(patient_row.get("email") or "").strip() or None
+        duplicate = _find_patient_duplicate(db, current_doctor["doctor_id"], phone, email)
+        if duplicate:
+            duplicates.append({
+                "row_number": row_number,
+                "reason": "duplicate_phone_or_email",
+                "duplicate_id": duplicate.id,
+            })
+
+        age_value = patient_row.get("age")
+        if age_value not in (None, ""):
+            patient_row["age"] = int(str(age_value).strip())
+
+        preview_rows.append(patient_row)
+        valid_rows += 1
+
+    return {
+        "total_rows": total_rows,
+        "valid_rows": valid_rows,
+        "invalid_rows": invalid_rows,
+        "preview_rows": preview_rows,
+        "duplicates": duplicates,
+        "mapped_columns": header_map,
+        "unmapped_columns": unmapped_columns,
+        "errors": errors,
+    }
+
 
 def get_db():
 
@@ -35,6 +220,96 @@ def get_db():
 
     finally:
         db.close()
+
+
+@router.post("/import/preview")
+def preview_patient_import(
+    file: UploadFile = File(...),
+    current_doctor: dict = Depends(get_current_doctor),
+    db: Session = Depends(get_db),
+):
+    content = file.file.read()
+    csv_text = content.decode("utf-8-sig") if isinstance(content, bytes) else str(content)
+    return _parse_csv_preview(db, current_doctor, csv_text)
+
+
+@router.post("/import/confirm")
+def confirm_patient_import(
+    payload: dict,
+    current_doctor: dict = Depends(get_current_doctor),
+    db: Session = Depends(get_db),
+):
+    rows = payload.get("rows", []) if isinstance(payload, dict) else []
+    imported_count = 0
+    skipped_duplicates = 0
+    failed_validation = 0
+
+    for row in rows:
+        if not isinstance(row, dict):
+            failed_validation += 1
+            continue
+
+        patient_row = {
+            "name": str(row.get("name") or "").strip(),
+            "phone": str(row.get("phone") or "").strip(),
+            "email": str(row.get("email") or "").strip() or None,
+            "age": row.get("age"),
+            "gender": str(row.get("gender") or "").strip() or None,
+            "address": str(row.get("address") or "").strip() or None,
+            "blood_group": str(row.get("blood_group") or "").strip() or None,
+            "medical_history": str(row.get("medical_history") or "").strip() or None,
+            "notes": str(row.get("notes") or "").strip() or None,
+            "last_treatment": str(row.get("last_treatment") or "").strip() or None,
+        }
+
+        valid, validation_errors = _validate_patient_row(patient_row)
+        if not valid:
+            failed_validation += 1
+            continue
+
+        duplicate = _find_patient_duplicate(
+            db,
+            current_doctor["doctor_id"],
+            patient_row["phone"],
+            patient_row["email"],
+        )
+        if duplicate:
+            skipped_duplicates += 1
+            continue
+
+        age_value = patient_row.get("age")
+        if age_value not in (None, ""):
+            try:
+                patient_row["age"] = int(str(age_value).strip())
+            except (TypeError, ValueError):
+                failed_validation += 1
+                continue
+        else:
+            # Convert empty string to None
+            patient_row["age"] = None
+
+        new_patient = Patient(
+            doctor_id=current_doctor["doctor_id"],
+            name=patient_row["name"],
+            phone=patient_row["phone"],
+            email=patient_row["email"],
+            age=patient_row.get("age"),
+            gender=patient_row.get("gender"),
+            address=patient_row.get("address"),
+            blood_group=patient_row.get("blood_group"),
+            medical_history=patient_row.get("medical_history"),
+            notes=patient_row.get("notes"),
+            last_treatment=patient_row.get("last_treatment"),
+        )
+        db.add(new_patient)
+        imported_count += 1
+
+    db.commit()
+    return {
+        "imported_count": imported_count,
+        "skipped_duplicates": skipped_duplicates,
+        "failed_validation": failed_validation,
+    }
 
 
 @router.post("")

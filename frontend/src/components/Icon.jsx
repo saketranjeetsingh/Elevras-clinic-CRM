@@ -6,6 +6,9 @@ function Icon({ name, size = 18, className = "" }) {
         patients: (
             <path d="M16 8a3 3 0 1 0-3-3 3 3 0 0 0 3 3Zm-8 0a3 3 0 1 0-3-3 3 3 0 0 0 3 3Zm0 2c-2.8 0-5 1.6-5 3.6V16h10v-2.4C13 11.6 10.8 10 8 10Zm8 0c-.7 0-1.4.1-2 .3a4.2 4.2 0 0 1 0 3.7c1.4.4 2 1 2 1.6V16h4v-2.4c0-2-2.2-3.6-4-3.6Z" />
         ),
+        import: (
+            <path d="M12 2 4 6v3h2V7l6-3 6 3v2h2V6Zm-1 8v6h2v-6h3l-4-4-4 4Zm-8 2v6a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-6h-2v6H5v-6Z" />
+        ),
         appointments: (
             <path d="M7 3v2H5a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2V3h-2v2H9V3Zm12 6H5v9h14Z" />
         ),

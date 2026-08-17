@@ -8,6 +8,7 @@ import PatientProfile from "./pages/PatientProfile";
 import Appointments from "./pages/Appointments";
 import Treatments from "./pages/Treatments";
 import Bills from "./pages/Bills";
+import Import from "./pages/Import";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
@@ -31,6 +32,15 @@ function App() {
                     element={
                         <ProtectedRoute>
                             <Patients />
+                        </ProtectedRoute>
+                    }
+                />
+
+                <Route
+                    path="/patients/import"
+                    element={
+                        <ProtectedRoute>
+                            <Import />
                         </ProtectedRoute>
                     }
                 />

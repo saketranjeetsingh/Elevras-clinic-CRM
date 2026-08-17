@@ -23,6 +23,7 @@ export default function Sidebar() {
     const navItems = [
         { to: "/dashboard", label: "Dashboard", icon: "dashboard" },
         { to: "/patients", label: "Patients", icon: "patients" },
+        { to: "/patients/import", label: "Import Patients", icon: "import" },
         { to: "/appointments", label: "Appointments", icon: "appointments" },
         { to: "/treatments", label: "Treatments", icon: "treatments" },
         { to: "/bills", label: "Bills", icon: "bills" },
