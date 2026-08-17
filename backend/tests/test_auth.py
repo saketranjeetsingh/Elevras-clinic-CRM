@@ -34,3 +34,25 @@ def test_unauthenticated_access_is_rejected(client):
 
     response = client.get("/dashboard/stats")
     assert response.status_code == 401, response.text
+
+
+def test_unauthenticated_access_to_sensitive_endpoints_is_rejected(client):
+    protected_routes = [
+        ("/patients/", "get"),
+        ("/patients/1", "get"),
+        ("/patients/", "post"),
+        ("/appointments/", "get"),
+        ("/appointments/", "post"),
+        ("/treatments/", "get"),
+        ("/treatments/", "post"),
+        ("/bills/", "get"),
+        ("/bills/", "post"),
+        ("/dashboard/stats", "get"),
+    ]
+
+    for path, method in protected_routes:
+        if method == "get":
+            response = client.get(path)
+        else:
+            response = client.post(path, json={})
+        assert response.status_code == 401, f"{method.upper()} {path} expected 401 but got {response.status_code}: {response.text}"

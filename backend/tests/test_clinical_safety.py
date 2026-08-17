@@ -1,6 +1,31 @@
 from conftest import signup_doctor
 
 
+def test_unrelated_patient_can_be_deleted(client):
+    headers_a, _ = signup_doctor(client, "clinic_delete_ok@example.com", "Doctor A", "Clinic A")
+
+    patient = client.post(
+        "/patients/",
+        headers=headers_a,
+        json={
+            "name": "Delete Me",
+            "phone": "7777777778",
+            "email": "deleteok@example.com",
+            "age": 28,
+            "gender": "male",
+        },
+    )
+    assert patient.status_code == 200, patient.text
+    patient_id = patient.json()["id"]
+
+    delete_response = client.delete(f"/patients/{patient_id}", headers=headers_a)
+    assert delete_response.status_code == 200, delete_response.text
+    assert delete_response.json()["message"] == "Patient deleted successfully"
+
+    get_response = client.get(f"/patients/{patient_id}", headers=headers_a)
+    assert get_response.status_code == 404, get_response.text
+
+
 def test_patient_delete_with_related_records_is_blocked(client):
     headers_a, _ = signup_doctor(client, "clinic_a@example.com", "Doctor A", "Clinic A")
 
