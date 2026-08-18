@@ -51,6 +51,24 @@ function Icon({ name, size = 18, className = "" }) {
         search: (
             <path d="M10 4a6 6 0 1 1 0 12 6 6 0 0 1 0-12Zm8 12 3 3-1.4 1.4-3-3" />
         ),
+        sun: (
+            <g>
+                <circle cx="12" cy="12" r="4" />
+                <path
+                    d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    fill="none"
+                />
+            </g>
+        ),
+        moon: (
+            <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" />
+        ),
+        logout: (
+            <path d="M4 4h8v16H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm11.6 3.6 1.6 2.4H9v2h8.2l-1.6 2.4 1.6 1.2L21 12l-3.8 4.4-1.6-1.2 1.6-2.4H9v-2h8.2l-1.6-2.4Z" />
+        ),
     };
 
     return (
