@@ -3,13 +3,14 @@ import PatientSelector from "../components/PatientSelector";
 import PatientSummaryCard from "../components/PatientSummaryCard";
 import { get, post, put } from "../services/api";
 import { createPatientLookup } from "../utils/patientHelpers";
+import { useToast } from "../components/ToastContext";
 
 function Treatments() {
     const [treatments, setTreatments] = useState([]);
     const [patients, setPatients] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
-    const [success, setSuccess] = useState(null);
+    const toast = useToast();
 
     const [form, setForm] = useState({
         patient_id: "",
@@ -32,6 +33,7 @@ function Treatments() {
             setPatients(patientsData || []);
         } catch (err) {
             setError(err?.detail || err?.message || "We could not load treatments right now.");
+            toast.error(err?.detail || err?.message || "We could not load treatments right now.");
         } finally {
             setLoading(false);
         }
@@ -55,10 +57,14 @@ function Treatments() {
     const handleCreate = async (e) => {
         e.preventDefault();
         setError(null);
-        setSuccess(null);
 
         if (!selectedPatient) {
-            setError("Please select a patient before creating a treatment.");
+            toast.error("Please select a patient before creating a treatment.");
+            return;
+        }
+
+        if (!form.treatment_name.trim()) {
+            toast.error("Please enter the treatment name.");
             return;
         }
 
@@ -74,21 +80,20 @@ function Treatments() {
             setForm({ patient_id: "", treatment_name: "", cost: "", status: "Planned", notes: "" });
             setSelectedPatient(null);
             await fetchTreatments();
-            setSuccess("Treatment created successfully");
+            toast.success("Treatment created successfully");
         } catch (err) {
-            setError(err?.detail || err?.message || "We could not save the treatment.");
+            toast.error(err?.detail || err?.message || "We could not save the treatment.");
         }
     };
 
     const handleUpdateStatus = async (treatment, nextStatus) => {
         setError(null);
-        setSuccess(null);
         try {
-            await put(`/treatments/${treatment.id}`, null, { status: nextStatus });
+            await put(`/treatments/${treatment.id}`, { status: nextStatus });
             await fetchTreatments();
-            setSuccess("Treatment updated successfully");
+            toast.success("Treatment updated successfully");
         } catch (err) {
-            setError(err?.detail || err?.message || "We could not update the treatment.");
+            toast.error(err?.detail || err?.message || "We could not update the treatment.");
         }
     };
 
@@ -119,23 +124,37 @@ function Treatments() {
                                 setSelectedPatient(null);
                                 setForm((s) => ({ ...s, patient_id: "" }));
                             }}
+                            onQuickAdd={() => void fetchTreatments()}
                         />
                     </div>
-                    <input name="treatment_name" placeholder="Treatment" value={form.treatment_name} onChange={handleChange} />
-                    <input name="cost" placeholder="Cost" value={form.cost} onChange={handleChange} />
-                    <select name="status" value={form.status} onChange={handleChange}>
-                        <option value="Planned">Planned</option>
-                        <option value="In Progress">In Progress</option>
-                        <option value="Completed">Completed</option>
-                    </select>
-                    <input name="notes" placeholder="Notes" value={form.notes} onChange={handleChange} />
-                    <button className="btn" type="submit" disabled={!selectedPatient}>Create treatment</button>
+                    <div className="form-field">
+                        <label htmlFor="treatment-name">Treatment</label>
+                        <input id="treatment-name" name="treatment_name" placeholder="Treatment name" value={form.treatment_name} onChange={handleChange} />
+                    </div>
+                    <div className="form-field">
+                        <label htmlFor="treatment-cost">Cost</label>
+                        <input id="treatment-cost" name="cost" type="number" min="0" placeholder="Cost" value={form.cost} onChange={handleChange} />
+                    </div>
+                    <div className="form-field">
+                        <label htmlFor="treatment-status">Status</label>
+                        <select id="treatment-status" name="status" value={form.status} onChange={handleChange}>
+                            <option value="Planned">Planned</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Completed">Completed</option>
+                        </select>
+                    </div>
+                    <div className="form-field">
+                        <label htmlFor="treatment-notes">Notes</label>
+                        <input id="treatment-notes" name="notes" placeholder="Notes" value={form.notes} onChange={handleChange} />
+                    </div>
+                    <div className="full-width action-row">
+                        <button className="btn" type="submit" disabled={!selectedPatient}>Create treatment</button>
+                    </div>
                 </form>
             </section>
 
             <PatientSummaryCard patient={selectedPatient} />
 
-            {success && <div className="status-card status-card-success"><span>{success}</span></div>}
             {error && <div className="status-card status-card-error"><span>{error}</span></div>}
 
             <section className="section-card">
@@ -201,4 +220,3 @@ function Treatments() {
 }
 
 export default Treatments;
-

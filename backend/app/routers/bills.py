@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.models.bill import Bill
 from app.schemas.bill import BillCreate
+from app.schemas.bill import BillResponse
 from app.schemas.bill import BillUpdate
 
 from app.dependencies import get_current_doctor
@@ -30,8 +31,8 @@ def get_db():
         db.close()
 
 
-@router.post("")
-@router.post("/")
+@router.post("", response_model=BillResponse)
+@router.post("/", response_model=BillResponse)
 def create_bill(
     bill: BillCreate,
     current_doctor: dict = Depends(
@@ -63,8 +64,8 @@ def create_bill(
     return new_bill
 
 
-@router.get("")
-@router.get("/")
+@router.get("", response_model=list[BillResponse])
+@router.get("/", response_model=list[BillResponse])
 def get_bills(
     current_doctor: dict = Depends(
         get_current_doctor
@@ -78,7 +79,7 @@ def get_bills(
     ).all()
 
 
-@router.put("/{bill_id}")
+@router.put("/{bill_id}", response_model=BillResponse)
 def update_bill(
     bill_id: int,
     bill_data: BillUpdate,

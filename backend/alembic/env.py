@@ -17,8 +17,12 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 DATABASE_URL = os.getenv("DATABASE_URL")
-if DATABASE_URL:
-    config.set_main_option("sqlalchemy.url", DATABASE_URL)
+if not DATABASE_URL:
+    raise RuntimeError(
+        "DATABASE_URL environment variable not set. Create a backend/.env file or set the environment variable."
+        " See backend/.env.example for the expected format."
+    )
+config.set_main_option("sqlalchemy.url", DATABASE_URL)
 
 from app.models import appointment, bill, doctor, patient, treatment
 

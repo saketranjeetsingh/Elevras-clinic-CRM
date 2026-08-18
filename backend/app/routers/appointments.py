@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.models.appointment import Appointment
 from app.schemas.appointment import AppointmentCreate
+from app.schemas.appointment import AppointmentResponse
 from app.schemas.appointment import AppointmentUpdate
 from app.dependencies import get_current_doctor
 from app.dependencies import get_patient_for_current_doctor
@@ -29,8 +30,8 @@ def get_db():
         db.close()
 
 
-@router.post("")
-@router.post("/")
+@router.post("", response_model=AppointmentResponse)
+@router.post("/", response_model=AppointmentResponse)
 def create_appointment(
     appointment: AppointmentCreate,
     current_doctor: dict = Depends(
@@ -63,8 +64,8 @@ def create_appointment(
     return new_appointment
 
 
-@router.get("")
-@router.get("/")
+@router.get("", response_model=list[AppointmentResponse])
+@router.get("/", response_model=list[AppointmentResponse])
 def get_appointments(
     current_doctor: dict = Depends(
         get_current_doctor
@@ -78,7 +79,7 @@ def get_appointments(
     ).all()
 
 
-@router.put("/{appointment_id}")
+@router.put("/{appointment_id}", response_model=AppointmentResponse)
 def update_appointment(
     appointment_id: int,
     appointment_data: AppointmentUpdate,

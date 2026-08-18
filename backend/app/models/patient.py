@@ -35,8 +35,6 @@ class Patient(Base):
 
     gender = Column(String)
 
-    address = Column(String)
-
     blood_group = Column(String)
 
     medical_history = Column(String)

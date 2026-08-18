@@ -257,7 +257,7 @@ function Dashboard() {
                                                     <div className="list-item-subtitle">{patient.phone || "No phone on file"}</div>
                                                 </div>
                                                 <div className="list-item-meta">
-                                                    {patient.last_treatment ? formatDateLabel(patient.last_treatment) : "No treatment yet"}
+                                                    {patient.last_treatment || "No treatment yet"}
                                                 </div>
                                             </Link>
                                         </li>

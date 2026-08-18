@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
+import { ToastProvider } from "./components/Toast";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
@@ -14,7 +15,8 @@ import ProtectedRoute from "./components/ProtectedRoute";
 function App() {
     return (
         <BrowserRouter>
-            <Routes>
+            <ToastProvider>
+                <Routes>
                 <Route path="/" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />
 
@@ -81,6 +83,7 @@ function App() {
                     }
                 />
             </Routes>
+            </ToastProvider>
         </BrowserRouter>
     );
 }

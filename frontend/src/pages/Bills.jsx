@@ -3,13 +3,14 @@ import PatientSelector from "../components/PatientSelector";
 import PatientSummaryCard from "../components/PatientSummaryCard";
 import { get, post, put } from "../services/api";
 import { createPatientLookup } from "../utils/patientHelpers";
+import { useToast } from "../components/ToastContext";
 
 function Bills() {
     const [bills, setBills] = useState([]);
     const [patients, setPatients] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
-    const [success, setSuccess] = useState(null);
+    const toast = useToast();
 
     const [form, setForm] = useState({
         patient_id: "",
@@ -31,6 +32,7 @@ function Bills() {
             setPatients(patientsData || []);
         } catch (err) {
             setError(err?.detail || err?.message || "We could not load bills right now.");
+            toast.error(err?.detail || err?.message || "We could not load bills right now.");
         } finally {
             setLoading(false);
         }
@@ -54,10 +56,14 @@ function Bills() {
     const handleCreate = async (e) => {
         e.preventDefault();
         setError(null);
-        setSuccess(null);
 
         if (!selectedPatient) {
-            setError("Please select a patient before creating a bill.");
+            toast.error("Please select a patient before creating a bill.");
+            return;
+        }
+
+        if (!form.amount || Number(form.amount) <= 0) {
+            toast.error("Please enter a valid bill amount.");
             return;
         }
 
@@ -72,21 +78,20 @@ function Bills() {
             setForm({ patient_id: "", amount: "", payment_status: "Pending", payment_method: "Cash" });
             setSelectedPatient(null);
             await fetchBills();
-            setSuccess("Bill created successfully");
+            toast.success("Bill created successfully");
         } catch (err) {
-            setError(err?.detail || err?.message || "We could not save the bill.");
+            toast.error(err?.detail || err?.message || "We could not save the bill.");
         }
     };
 
     const handleUpdatePaymentStatus = async (bill, nextStatus) => {
         setError(null);
-        setSuccess(null);
         try {
-            await put(`/bills/${bill.id}`, null, { payment_status: nextStatus });
+            await put(`/bills/${bill.id}`, { payment_status: nextStatus });
             await fetchBills();
-            setSuccess("Bill updated successfully");
+            toast.success("Bill updated successfully");
         } catch (err) {
-            setError(err?.detail || err?.message || "We could not update the bill.");
+            toast.error(err?.detail || err?.message || "We could not update the bill.");
         }
     };
 
@@ -117,26 +122,37 @@ function Bills() {
                                 setSelectedPatient(null);
                                 setForm((s) => ({ ...s, patient_id: "" }));
                             }}
+                            onQuickAdd={() => void fetchBills()}
                         />
                     </div>
-                    <input name="amount" placeholder="Amount" value={form.amount} onChange={handleChange} />
-                    <select name="payment_status" value={form.payment_status} onChange={handleChange}>
-                        <option value="Pending">Pending</option>
-                        <option value="Paid">Paid</option>
-                        <option value="Overdue">Overdue</option>
-                    </select>
-                    <select name="payment_method" value={form.payment_method} onChange={handleChange}>
-                        <option value="Cash">Cash</option>
-                        <option value="Card">Card</option>
-                        <option value="Insurance">Insurance</option>
-                    </select>
-                    <button className="btn" type="submit" disabled={!selectedPatient}>Create bill</button>
+                    <div className="form-field">
+                        <label htmlFor="bill-amount">Amount</label>
+                        <input id="bill-amount" name="amount" type="number" min="0" placeholder="Amount" value={form.amount} onChange={handleChange} />
+                    </div>
+                    <div className="form-field">
+                        <label htmlFor="bill-payment-status">Payment status</label>
+                        <select id="bill-payment-status" name="payment_status" value={form.payment_status} onChange={handleChange}>
+                            <option value="Pending">Pending</option>
+                            <option value="Paid">Paid</option>
+                            <option value="Overdue">Overdue</option>
+                        </select>
+                    </div>
+                    <div className="form-field">
+                        <label htmlFor="bill-payment-method">Payment method</label>
+                        <select id="bill-payment-method" name="payment_method" value={form.payment_method} onChange={handleChange}>
+                            <option value="Cash">Cash</option>
+                            <option value="Card">Card</option>
+                            <option value="Insurance">Insurance</option>
+                        </select>
+                    </div>
+                    <div className="full-width action-row">
+                        <button className="btn" type="submit" disabled={!selectedPatient}>Create bill</button>
+                    </div>
                 </form>
             </section>
 
             <PatientSummaryCard patient={selectedPatient} />
 
-            {success && <div className="status-card status-card-success"><span>{success}</span></div>}
             {error && <div className="status-card status-card-error"><span>{error}</span></div>}
 
             <section className="section-card">
@@ -200,4 +216,3 @@ function Bills() {
 }
 
 export default Bills;
-

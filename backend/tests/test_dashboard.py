@@ -47,7 +47,7 @@ def test_dashboard_statistics_are_scoped_to_current_doctor(client):
             "patient_id": patient_b.json()["id"],
             "doctor_name": "Doctor B",
             "appointment_date": "2026-08-18",
-            "status": "pending",
+            "status": "Scheduled",
         },
     )
 
@@ -105,10 +105,16 @@ def test_dashboard_statistics_are_scoped_to_current_doctor(client):
     assert dashboard_a.json()["total_appointments"] == 1
     assert dashboard_a.json()["total_treatments"] == 1
     assert dashboard_a.json()["total_bills"] == 1
+    assert dashboard_a.json()["paid_bills"] == 1
+    assert dashboard_a.json()["pending_bills"] == 0
     assert dashboard_a.json()["total_revenue"] == 250
+    assert dashboard_a.json()["pending_revenue"] == 0
 
     assert dashboard_b.json()["total_patients"] == 1
     assert dashboard_b.json()["total_appointments"] == 1
     assert dashboard_b.json()["total_treatments"] == 1
     assert dashboard_b.json()["total_bills"] == 1
+    assert dashboard_b.json()["paid_bills"] == 0
+    assert dashboard_b.json()["pending_bills"] == 1
+    assert dashboard_b.json()["total_revenue"] == 0
     assert dashboard_b.json()["pending_revenue"] == 400

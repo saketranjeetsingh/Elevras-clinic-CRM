@@ -6,6 +6,29 @@ const api = axios.create({
     baseURL: apiBaseUrl,
 });
 
+function extractValidationDetail(data) {
+    const detail = data?.detail ?? data?.message;
+
+    if (Array.isArray(detail)) {
+        const parts = detail
+            .map((item) => {
+                if (!item || typeof item !== "object") return null;
+                const loc = Array.isArray(item.loc) ? item.loc.slice(1).join(".").replace(/_/g, " ") : "";
+                const msg = typeof item.msg === "string" && item.msg.trim() ? item.msg.trim() : "";
+                if (!msg) return null;
+                const field = loc ? `${loc}: ` : "";
+                return `${field}${msg.charAt(0).toUpperCase()}${msg.slice(1)}`;
+            })
+            .filter(Boolean);
+
+        if (parts.length) return parts.join(", ");
+    }
+
+    if (typeof detail === "string" && detail.trim()) return detail.trim();
+
+    return null;
+}
+
 function normalizeError(error) {
     if (!error) {
         return { detail: "Something went wrong. Please try again.", message: "Something went wrong. Please try again." };
@@ -24,7 +47,9 @@ function normalizeError(error) {
     }
 
     if (status === 422 || lowered.includes("validation failed")) {
-        return { detail: "Please check your details and try again.", message: "Please check your details and try again." };
+        const validationMessage = extractValidationDetail(error.response?.data);
+        const detail = validationMessage || "Please check your details and try again.";
+        return { detail, message: detail };
     }
 
     if (lowered.includes("patient already exists")) {
@@ -81,6 +106,15 @@ export async function get(path, params) {
 export async function post(path, data) {
     try {
         const res = await api.post(path, data);
+        return res.data;
+    } catch (err) {
+        throw err.response?.data || err;
+    }
+}
+
+export async function postForm(path, formData) {
+    try {
+        const res = await api.post(path, formData);
         return res.data;
     } catch (err) {
         throw err.response?.data || err;

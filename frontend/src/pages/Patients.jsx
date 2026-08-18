@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { get, post, put, del } from "../services/api";
+import { useToast } from "../components/ToastContext";
+import ConfirmModal from "../components/ConfirmModal";
 
 function Patients() {
     const [patients, setPatients] = useState([]);
@@ -14,15 +16,25 @@ function Patients() {
         email: "",
         age: "",
         gender: "",
-        address: "",
         blood_group: "",
         medical_history: "",
         notes: "",
-        last_treatment: "",
     });
     const [editingId, setEditingId] = useState(null);
-    const [success, setSuccess] = useState(null);
     const [searchQuery, setSearchQuery] = useState("");
+    const [pendingDeleteId, setPendingDeleteId] = useState(null);
+    const toast = useToast();
+
+    const emptyForm = {
+        name: "",
+        phone: "",
+        email: "",
+        age: "",
+        gender: "",
+        blood_group: "",
+        medical_history: "",
+        notes: "",
+    };
 
     const fetchPatients = async () => {
         setLoading(true);
@@ -34,6 +46,7 @@ function Patients() {
             setPatients(patientList);
         } catch (err) {
             setError(err?.detail || err?.message || "We could not load patients right now.");
+            toast.error(err?.detail || err?.message || "We could not load patients right now.");
         } finally {
             setLoading(false);
         }
@@ -55,10 +68,9 @@ function Patients() {
     const handleCreate = async (e) => {
         e.preventDefault();
         setError(null);
-        setSuccess(null);
 
-        if (!form.name.trim() || !form.phone.trim() || !form.email.trim()) {
-            setError("Please enter the patient name, phone number, and email.");
+        if (!form.name.trim() || !form.phone.trim()) {
+            toast.error("Please enter the patient name and phone number.");
             return;
         }
 
@@ -67,52 +79,35 @@ function Patients() {
                 await put(`/patients/${editingId}`, {
                     name: form.name,
                     phone: form.phone,
-                    email: form.email,
+                    email: form.email || null,
                     age: Number(form.age) || 0,
                     gender: form.gender,
-                    address: form.address,
                     blood_group: form.blood_group,
                     medical_history: form.medical_history,
                     notes: form.notes,
-                    last_treatment: form.last_treatment,
                 });
 
-                setSuccess("Patient updated successfully");
+                toast.success("Patient updated successfully");
                 setEditingId(null);
             } else {
                 await post("/patients", {
                     name: form.name,
                     phone: form.phone,
-                    email: form.email,
+                    email: form.email || null,
                     age: Number(form.age) || 0,
                     gender: form.gender,
-                    address: form.address,
                     blood_group: form.blood_group,
                     medical_history: form.medical_history,
                     notes: form.notes,
-                    last_treatment: form.last_treatment,
                 });
 
-                setSuccess("Patient created successfully");
+                toast.success("Patient created successfully");
             }
 
-            setForm({
-                name: "",
-                phone: "",
-                email: "",
-                age: "",
-                gender: "",
-                address: "",
-                blood_group: "",
-                medical_history: "",
-                notes: "",
-                last_treatment: "",
-            });
-
+            setForm(emptyForm);
             await fetchPatients();
         } catch (err) {
-            setSuccess(null);
-            setError(err?.detail || err?.message || "We could not save the patient record.");
+            toast.error(err?.detail || err?.message || "We could not save the patient record.");
         }
     };
 
@@ -124,27 +119,33 @@ function Patients() {
             email: patient.email || "",
             age: patient.age || "",
             gender: patient.gender || "",
-            address: patient.address || "",
             blood_group: patient.blood_group || "",
             medical_history: patient.medical_history || "",
             notes: patient.notes || "",
-            last_treatment: patient.last_treatment || "",
         });
-        setSuccess(null);
         setError(null);
+        window.scrollTo({ top: 0, behavior: "smooth" });
     };
 
-    const handleDelete = async (id) => {
-        if (!window.confirm("Are you sure you want to delete this patient?")) return;
-        setError(null);
-        setSuccess(null);
+    const handleCancelEdit = () => {
+        setEditingId(null);
+        setForm(emptyForm);
+    };
+
+    const handleDeleteConfirm = async () => {
+        if (!pendingDeleteId) {
+            return;
+        }
+
+        const deleteId = pendingDeleteId;
+        setPendingDeleteId(null);
 
         try {
-            await del(`/patients/${id}`);
-            setSuccess("Patient deleted successfully");
+            await del(`/patients/${deleteId}`);
+            toast.success("Patient deleted successfully");
             await fetchPatients();
         } catch (err) {
-            setError(err?.detail || err?.message || "We could not delete the patient record.");
+            toast.error(err?.detail || err?.message || "We could not delete the patient record.");
         }
     };
 
@@ -166,7 +167,6 @@ function Patients() {
                 patient.name,
                 patient.phone,
                 patient.email,
-                patient.last_treatment,
             ];
 
             if (emailPattern.test(normalizedQuery)) {
@@ -199,19 +199,41 @@ function Patients() {
                     <span className="muted-chip">Patient details</span>
                 </div>
                 <form onSubmit={handleCreate} className="form-grid">
-                    <input name="name" placeholder="Name" value={form.name} onChange={handleChange} />
-                    <input name="phone" placeholder="Phone" value={form.phone} onChange={handleChange} />
-                    <input name="email" placeholder="Email" value={form.email} onChange={handleChange} />
-                    <input name="age" type="number" placeholder="Age" value={form.age} onChange={handleChange} />
-                    <input name="gender" placeholder="Gender" value={form.gender} onChange={handleChange} />
-                    <input name="address" placeholder="Address" value={form.address} onChange={handleChange} />
-                    <input name="blood_group" placeholder="Blood Group" value={form.blood_group} onChange={handleChange} />
-                    <input name="medical_history" placeholder="Medical History" value={form.medical_history} onChange={handleChange} />
-                    <input name="notes" placeholder="Notes" value={form.notes} onChange={handleChange} />
-                    <input name="last_treatment" type="date" value={form.last_treatment} onChange={handleChange} />
+                    <div className="form-field">
+                        <label htmlFor="patient-name">Name <span className="muted">(required)</span></label>
+                        <input id="patient-name" name="name" placeholder="Full name" value={form.name} onChange={handleChange} required />
+                    </div>
+                    <div className="form-field">
+                        <label htmlFor="patient-phone">Phone <span className="muted">(required)</span></label>
+                        <input id="patient-phone" name="phone" placeholder="Phone number" value={form.phone} onChange={handleChange} required />
+                    </div>
+                    <div className="form-field">
+                        <label htmlFor="patient-email">Email <span className="muted">(optional)</span></label>
+                        <input id="patient-email" name="email" type="email" placeholder="Email (optional)" value={form.email} onChange={handleChange} />
+                    </div>
+                    <div className="form-field">
+                        <label htmlFor="patient-age">Age</label>
+                        <input id="patient-age" name="age" type="number" min="0" placeholder="Age" value={form.age} onChange={handleChange} />
+                    </div>
+                    <div className="form-field">
+                        <label htmlFor="patient-gender">Gender</label>
+                        <input id="patient-gender" name="gender" placeholder="Gender" value={form.gender} onChange={handleChange} />
+                    </div>
+                    <div className="form-field">
+                        <label htmlFor="patient-blood-group">Blood Group</label>
+                        <input id="patient-blood-group" name="blood_group" placeholder="Blood group" value={form.blood_group} onChange={handleChange} />
+                    </div>
+                    <div className="form-field full-width">
+                        <label htmlFor="patient-medical-history">Medical History</label>
+                        <textarea id="patient-medical-history" name="medical_history" rows="3" placeholder="Allergies, conditions, ongoing care…" value={form.medical_history} onChange={handleChange} />
+                    </div>
+                    <div className="form-field full-width">
+                        <label htmlFor="patient-notes">Notes</label>
+                        <textarea id="patient-notes" name="notes" rows="2" placeholder="Internal notes" value={form.notes} onChange={handleChange} />
+                    </div>
                     <div className="full-width action-row">
                         <button className="btn" type="submit">{editingId ? "Save changes" : "Create patient"}</button>
-                        {editingId && <button type="button" className="btn secondary" onClick={() => { setEditingId(null); setForm({ name: "", phone: "", email: "", age: "", gender: "", address: "", blood_group: "", medical_history: "", notes: "", last_treatment: "" }); }}>Cancel</button>}
+                        {editingId && <button type="button" className="btn secondary" onClick={handleCancelEdit}>Cancel</button>}
                     </div>
                 </form>
             </section>
@@ -224,7 +246,6 @@ function Patients() {
                 </form>
             </section>
 
-            {success && <div className="status-card status-card-success"><span>{success}</span></div>}
             {error && <div className="status-card status-card-error"><span>{error}</span></div>}
 
             <section className="section-card">
@@ -261,6 +282,9 @@ function Patients() {
                                         </td>
                                         <td>
                                             <Link to={`/patients/${p.id}`} className="patient-link">{p.name}</Link>
+                                            {!p.age && !p.gender && !p.email && !p.medical_history && (
+                                                <span className="badge badge-warning">Needs details</span>
+                                            )}
                                         </td>
                                         <td>{p.phone}</td>
                                         <td>{p.email}</td>
@@ -269,8 +293,8 @@ function Patients() {
                                         <td>{p.last_treatment}</td>
                                         <td>
                                             <div className="action-group">
-                                                <button className="btn secondary" onClick={() => handleEdit(p)}>Edit</button>
-                                                <button className="btn danger" onClick={() => handleDelete(p.id)}>Delete</button>
+                                                <button className="btn secondary sm" onClick={() => handleEdit(p)}>Edit</button>
+                                                <button className="btn danger sm" onClick={() => setPendingDeleteId(p.id)}>Delete</button>
                                             </div>
                                         </td>
                                     </tr>
@@ -286,6 +310,15 @@ function Patients() {
                     </div>
                 )}
             </section>
+
+            <ConfirmModal
+                open={Boolean(pendingDeleteId)}
+                title="Delete this patient?"
+                message="This will permanently remove the patient record. This action cannot be undone."
+                confirmLabel="Delete"
+                onConfirm={() => void handleDeleteConfirm()}
+                onCancel={() => setPendingDeleteId(null)}
+            />
         </div>
     );
 }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { get, post } from "../services/api";
+import { useToast } from "../components/ToastContext";
 import PatientHeader from "../components/PatientHeader";
 import PatientInfoCard from "../components/PatientInfoCard";
 import MedicalHistoryCard from "../components/MedicalHistoryCard";
@@ -9,6 +10,7 @@ import PatientTimeline from "../components/PatientTimeline";
 import ProfileStats from "../components/ProfileStats";
 import HistoryTables from "../components/HistoryTables";
 import QuickActions from "../components/QuickActions";
+import AttachmentsSection from "../components/AttachmentsSection";
 
 function formatCurrency(value) {
     const amount = Number(value || 0);
@@ -67,9 +69,8 @@ function PatientProfile() {
     const { id } = useParams();
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
-    const [actionMessage, setActionMessage] = useState(null);
     const [activeAction, setActiveAction] = useState(null);
+    const toast = useToast();
     const [quickForm, setQuickForm] = useState({
         appointment: { doctor_name: "", appointment_date: "", status: "Scheduled", notes: "" },
         treatment: { treatment_name: "", cost: "", status: "Planned", notes: "" },
@@ -78,17 +79,16 @@ function PatientProfile() {
 
     const fetchProfile = useCallback(async () => {
         setLoading(true);
-        setError(null);
 
         try {
             const data = await get(`/patients/${id}/profile`);
             setProfile(data || null);
         } catch (err) {
-            setError(err?.detail || err?.message || "We could not load the patient profile.");
+            toast.error(err?.detail || err?.message || "We could not load the patient profile.");
         } finally {
             setLoading(false);
         }
-    }, [id]);
+    }, [id, toast]);
 
     useEffect(() => {
         if (id) {
@@ -164,8 +164,6 @@ function PatientProfile() {
 
     const handleQuickActionSubmit = async (event) => {
         event.preventDefault();
-        setError(null);
-        setActionMessage(null);
 
         try {
             if (activeAction === "appointment") {
@@ -176,7 +174,7 @@ function PatientProfile() {
                     status: quickForm.appointment.status,
                     notes: quickForm.appointment.notes,
                 });
-                setActionMessage("Appointment created successfully.");
+                toast.success("Appointment created successfully.");
             } else if (activeAction === "treatment") {
                 await post("/treatments", {
                     patient_id: Number(patient.id),
@@ -185,7 +183,7 @@ function PatientProfile() {
                     status: quickForm.treatment.status,
                     notes: quickForm.treatment.notes,
                 });
-                setActionMessage("Treatment created successfully.");
+                toast.success("Treatment created successfully.");
             } else if (activeAction === "bill") {
                 await post("/bills", {
                     patient_id: Number(patient.id),
@@ -193,7 +191,7 @@ function PatientProfile() {
                     payment_status: quickForm.bill.payment_status,
                     payment_method: quickForm.bill.payment_method,
                 });
-                setActionMessage("Bill generated successfully.");
+                toast.success("Bill generated successfully.");
             }
 
             setActiveAction(null);
@@ -204,7 +202,7 @@ function PatientProfile() {
             });
             await fetchProfile();
         } catch (err) {
-            setError(err?.detail || err?.message || "We could not save the new record.");
+            toast.error(err?.detail || err?.message || "We could not save the new record.");
         }
     };
 
@@ -212,11 +210,18 @@ function PatientProfile() {
         <div className="page">
             <PatientHeader patient={patient} />
 
-            {actionMessage && <p className="status-message success">{actionMessage}</p>}
-            {loading && <p className="status-message">Loading patient profile...</p>}
-            {error && <p className="status-message error">{error}</p>}
+            {!patient.age && !patient.gender && !patient.email && !patient.medical_history && (
+                <div className="status-card status-card-warning">
+                    <span>
+                        This patient only has basic contact details.{" "}
+                        <Link to="/patients" className="patient-link">Complete their profile</Link> when they arrive.
+                    </span>
+                </div>
+            )}
 
-            {!loading && !error && profile && (
+            {loading && <p className="status-message">Loading patient profile...</p>}
+
+            {!loading && profile && (
                 <div className="profile-layout">
                     <PatientInfoCard patient={patient} />
 
@@ -241,6 +246,8 @@ function PatientProfile() {
                     />
 
                     <MedicalHistoryCard medicalHistoryItems={medicalHistoryItems} />
+
+                    <AttachmentsSection patientId={patient.id} />
 
                     <PatientTimeline timelineItems={timelineItems} formatDateLabel={formatDateLabel} />
 

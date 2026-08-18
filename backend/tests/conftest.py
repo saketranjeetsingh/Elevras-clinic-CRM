@@ -4,7 +4,8 @@ os.environ.setdefault(
     "DATABASE_URL",
     "postgresql://postgres:lmaoyaarcomeon@localhost:5432/elevras_db_test",
 )
-os.environ.setdefault("SECRET_KEY", "test-secret-key")
+os.environ.setdefault("SECRET_KEY", "test-secret-key-that-is-long-enough-for-tests")
+os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
 
 import pytest
 from fastapi.testclient import TestClient
@@ -19,6 +20,7 @@ from app.routers import appointments as appointments_router
 from app.routers import treatments as treatments_router
 from app.routers import bills as bills_router
 from app.routers import dashboard as dashboard_router
+from app.routers import attachments as attachments_router
 
 TEST_DATABASE_URL = os.environ["DATABASE_URL"]
 engine = create_engine(TEST_DATABASE_URL)
@@ -44,6 +46,7 @@ def client():
     app.dependency_overrides[treatments_router.get_db] = override_get_db
     app.dependency_overrides[bills_router.get_db] = override_get_db
     app.dependency_overrides[dashboard_router.get_db] = override_get_db
+    app.dependency_overrides[attachments_router.get_db] = override_get_db
 
     with TestClient(app) as test_client:
         yield test_client

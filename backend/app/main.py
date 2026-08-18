@@ -1,5 +1,14 @@
+from contextlib import asynccontextmanager
+
+import os
+import time
+
+from dotenv import load_dotenv
+
 from fastapi import FastAPI
+from fastapi import Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from sqlalchemy import text
 from sqlalchemy import inspect
@@ -15,6 +24,7 @@ from app.models.appointment import Appointment
 from app.models.treatment import Treatment
 from app.models.bill import Bill
 from app.models.doctor import Doctor
+from app.models.attachment import PatientAttachment
 
 # Routers
 from app.routers.patients import router as patient_router
@@ -23,7 +33,13 @@ from app.routers.treatments import router as treatment_router
 from app.routers.bills import router as bill_router
 from app.routers.dashboard import router as dashboard_router
 from app.routers.auth import router as auth_router
+from app.routers.attachments import router as attachment_router
 
+
+# Load environment variables from backend/.env (if present)
+base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+dotenv_path = os.path.join(base_dir, ".env")
+load_dotenv(dotenv_path)
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -56,7 +72,7 @@ def ensure_schema():
         # Add common data-integrity columns if missing
         for table_name, columns in {
             "doctors": ["created_at", "updated_at"],
-            "patients": ["created_at", "updated_at", "address", "blood_group", "medical_history"],
+            "patients": ["created_at", "updated_at", "blood_group", "medical_history"],
             "appointments": ["created_at", "updated_at"],
             "treatments": ["created_at", "updated_at", "treatment_date"],
             "bills": ["created_at", "updated_at"],
@@ -79,7 +95,7 @@ def ensure_schema():
         # Add patient profile columns if missing
         if "patients" in existing_tables:
             patient_columns = {col["name"] for col in inspector.get_columns("patients")}
-            for column_name in ["address", "blood_group", "medical_history"]:
+            for column_name in ["blood_group", "medical_history"]:
                 if column_name not in patient_columns:
                     conn.execute(
                         text(
@@ -145,23 +161,8 @@ def ensure_schema():
                         pass
 
 
-app = FastAPI()
-
-
-# ----------------------------
-# CORS
-# ----------------------------
-app.add_middleware(
-    CORSMiddleware,
-    allow_origin_regex=r"http://(localhost|127\.0\.0\.1):\d+",
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
-@app.on_event("startup")
-def startup_event():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     """
     Connect to PostgreSQL,
     create tables if they don't exist,
@@ -185,6 +186,44 @@ def startup_event():
             f"Original error: {exc}"
         )
 
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
+
+
+# ----------------------------
+# Request logging
+# ----------------------------
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start = time.perf_counter()
+    response = await call_next(request)
+    duration_ms = (time.perf_counter() - start) * 1000
+    logger.info(
+        "%s %s -> %s (%.1fms)",
+        request.method,
+        request.url.path,
+        response.status_code,
+        duration_ms,
+    )
+    return response
+
+
+# ----------------------------
+# CORS
+# ----------------------------
+cors_origins_env = os.environ.get("CORS_ORIGINS", "http://localhost:5173")
+cors_origins = [origin.strip() for origin in cors_origins_env.split(",") if origin.strip()]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 # ----------------------------
 # Routers
@@ -195,6 +234,7 @@ app.include_router(appointment_router)
 app.include_router(treatment_router)
 app.include_router(bill_router)
 app.include_router(dashboard_router)
+app.include_router(attachment_router)
 
 
 @app.get("/")
@@ -202,3 +242,21 @@ def home():
     return {
         "message": "Elevras API Running"
     }
+
+
+@app.get("/health")
+def health():
+    database_ok = True
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+    except Exception:
+        database_ok = False
+
+    return JSONResponse(
+        status_code=200 if database_ok else 503,
+        content={
+            "status": "ok" if database_ok else "degraded",
+            "database": "ok" if database_ok else "error",
+        },
+    )

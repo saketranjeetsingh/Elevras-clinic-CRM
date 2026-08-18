@@ -9,6 +9,7 @@ from app.database import SessionLocal
 from app.models.treatment import Treatment
 
 from app.schemas.treatment import TreatmentCreate
+from app.schemas.treatment import TreatmentResponse
 from app.schemas.treatment import TreatmentUpdate
 
 from app.dependencies import get_current_doctor
@@ -32,8 +33,8 @@ def get_db():
         db.close()
 
 
-@router.post("")
-@router.post("/")
+@router.post("", response_model=TreatmentResponse)
+@router.post("/", response_model=TreatmentResponse)
 def create_treatment(
     treatment: TreatmentCreate,
     current_doctor: dict = Depends(
@@ -67,8 +68,8 @@ def create_treatment(
     return new_treatment
 
 
-@router.get("")
-@router.get("/")
+@router.get("", response_model=list[TreatmentResponse])
+@router.get("/", response_model=list[TreatmentResponse])
 def get_treatments(
     current_doctor: dict = Depends(
         get_current_doctor
@@ -82,7 +83,7 @@ def get_treatments(
     ).all()
 
 
-@router.put("/{treatment_id}")
+@router.put("/{treatment_id}", response_model=TreatmentResponse)
 def update_treatment(
     treatment_id: int,
     treatment_data: TreatmentUpdate,

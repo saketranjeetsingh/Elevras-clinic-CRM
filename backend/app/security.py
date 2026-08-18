@@ -22,6 +22,14 @@ if not SECRET_KEY:
         " See backend/.env.example for the expected format."
     )
 
+WEAK_SECRET_KEYS = {"your-secret-key-here", "change-me", "changeme", "secret"}
+if len(SECRET_KEY.strip()) < 32 or SECRET_KEY.strip().lower() in WEAK_SECRET_KEYS:
+    raise RuntimeError(
+        "SECRET_KEY is too weak. Use a random string of at least 32 characters"
+        " (e.g. `python -c \"import secrets; print(secrets.token_hex(32))\"`)."
+        " See backend/.env.example."
+    )
+
 ALGORITHM = "HS256"
 
 ACCESS_TOKEN_EXPIRE_MINUTES = 60

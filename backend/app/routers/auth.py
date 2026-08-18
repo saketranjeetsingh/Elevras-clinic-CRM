@@ -12,11 +12,12 @@ from app.models.doctor import Doctor
 from app.schemas.doctor import DoctorSignup
 
 from app.dependencies import get_current_doctor
-from fastapi import Depends
 
 from app.security import hash_password
 from app.security import verify_password
 from app.security import create_access_token
+
+from app.ratelimit import auth_rate_limit
 
 
 router = APIRouter(
@@ -39,6 +40,7 @@ def get_db():
 @router.post("/signup")
 def signup(
     doctor: DoctorSignup,
+    _: None = Depends(auth_rate_limit),
     db: Session = Depends(get_db)
 ):
 
@@ -76,6 +78,7 @@ def signup(
 @router.post("/login")
 def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
+    _: None = Depends(auth_rate_limit),
     db: Session = Depends(get_db)
 ):
 

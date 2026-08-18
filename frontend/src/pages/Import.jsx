@@ -1,20 +1,18 @@
 import { useState } from "react";
-import { post } from "../services/api";
+import { post, postForm } from "../services/api";
+import { useToast } from "../components/ToastContext";
 
 function Import() {
     const [file, setFile] = useState(null);
     const [previewData, setPreviewData] = useState(null);
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
-    const [success, setSuccess] = useState(null);
     const [confirming, setConfirming] = useState(false);
+    const toast = useToast();
 
     const handleFileSelect = (e) => {
         const selected = e.target.files[0];
         if (selected) {
             setFile(selected);
-            setError(null);
-            setSuccess(null);
             setPreviewData(null);
         }
     };
@@ -22,40 +20,26 @@ function Import() {
     const handlePreview = async (e) => {
         e.preventDefault();
         if (!file) {
-            setError("Please select a CSV file");
+            toast.error("Please select a CSV file");
             return;
         }
 
         setLoading(true);
-        setError(null);
-        setSuccess(null);
 
         try {
             const formData = new FormData();
             formData.append("file", file);
 
-            const response = await fetch("/patients/import/preview", {
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${localStorage.getItem("token")}`,
-                },
-                body: formData,
-            });
-
-            if (!response.ok) {
-                throw new Error(`Preview failed: ${response.statusText}`);
-            }
-
-            const data = await response.json();
+            const data = await postForm("/patients/import/preview", formData);
             setPreviewData(data);
 
             if (data.total_rows === 0) {
-                setError("CSV file is empty");
+                toast.error("CSV file is empty");
             } else if (data.invalid_rows > 0 || data.errors.length > 0) {
-                setError(`Found ${data.invalid_rows} invalid rows. Please review the data.`);
+                toast.error(`Found ${data.invalid_rows} invalid rows. Please review the data.`);
             }
         } catch (err) {
-            setError(err?.message || "Preview failed");
+            toast.error(err?.detail || err?.message || "Preview failed");
         } finally {
             setLoading(false);
         }
@@ -63,26 +47,24 @@ function Import() {
 
     const handleConfirm = async () => {
         if (!previewData || !previewData.preview_rows) {
-            setError("No preview data to confirm");
+            toast.error("No preview data to confirm");
             return;
         }
 
         setConfirming(true);
-        setError(null);
-        setSuccess(null);
 
         try {
             const result = await post("/patients/import/confirm", {
                 rows: previewData.preview_rows,
             });
 
-            setSuccess(
+            toast.success(
                 `Import complete: ${result.imported_count} patients imported, ${result.skipped_duplicates} duplicates skipped.`
             );
             setPreviewData(null);
             setFile(null);
         } catch (err) {
-            setError(err?.detail || err?.message || "Import failed");
+            toast.error(err?.detail || err?.message || "Import failed");
         } finally {
             setConfirming(false);
         }
@@ -91,8 +73,6 @@ function Import() {
     const handleCancel = () => {
         setFile(null);
         setPreviewData(null);
-        setError(null);
-        setSuccess(null);
     };
 
     return (
@@ -120,9 +100,6 @@ function Import() {
                 </div>
             </div>
 
-            {success && <div className="status-card status-card-success"><span>{success}</span></div>}
-            {error && <div className="status-card status-card-error"><span>{error}</span></div>}
-
             <section className="section-card form-card">
                 <div className="section-heading-row">
                     <h2>{previewData ? "Review Preview" : "Select CSV File"}</h2>
@@ -131,8 +108,8 @@ function Import() {
 
                 {!previewData ? (
                     <form onSubmit={handlePreview}>
-                        <div className="form-group">
-                            <label htmlFor="csv-file" className="form-label">
+                        <div className="form-field">
+                            <label htmlFor="csv-file">
                                 CSV File
                             </label>
                             <input
@@ -144,7 +121,7 @@ function Import() {
                                 required
                             />
                             <p className="form-help">
-                                Your CSV should include columns for: name, phone, email, age, gender, address, blood_group, medical_history, notes, and last_treatment.
+                                Your CSV should include columns for: name, phone, email, age, gender, blood_group, medical_history, notes, and last_treatment.
                             </p>
                         </div>
                         <div className="action-row">
@@ -282,14 +259,14 @@ function Import() {
                 <p>Your CSV file should have the following structure:</p>
                 <div className="code-block">
                     <pre>
-{`name,phone,email,age,gender,address,blood_group,medical_history,notes,last_treatment
-John Doe,1234567890,john@example.com,30,Male,123 Main St,O+,None,Regular checkup,2024-01-15
-Jane Smith,9876543210,jane@example.com,28,Female,456 Oak Ave,A-,Diabetes,Follow up,2024-01-14`}
+{`name,phone,email,age,gender,blood_group,medical_history,notes,last_treatment
+John Doe,1234567890,john@example.com,30,Male,O+,None,Regular checkup,2024-01-15
+Jane Smith,9876543210,jane@example.com,28,Female,A-,Diabetes,Follow up,2024-01-14`}
                     </pre>
                 </div>
                 <ul>
-                    <li><strong>Required:</strong> name, phone, email</li>
-                    <li><strong>Optional:</strong> age, gender, address, blood_group, medical_history, notes, last_treatment</li>
+                    <li><strong>Required:</strong> name, phone</li>
+                    <li><strong>Optional:</strong> email, age, gender, blood_group, medical_history, notes, last_treatment</li>
                     <li>Column headers are case-insensitive</li>
                     <li>Duplicate phone or email addresses will be automatically skipped</li>
                     <li>Invalid rows are reported but don't block the entire import</li>

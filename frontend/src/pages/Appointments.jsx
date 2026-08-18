@@ -3,13 +3,14 @@ import PatientSelector from "../components/PatientSelector";
 import PatientSummaryCard from "../components/PatientSummaryCard";
 import { get, post, put } from "../services/api";
 import { createPatientLookup } from "../utils/patientHelpers";
+import { useToast } from "../components/ToastContext";
 
 function Appointments() {
     const [appointments, setAppointments] = useState([]);
     const [patients, setPatients] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
-    const [success, setSuccess] = useState(null);
+    const toast = useToast();
 
     const [form, setForm] = useState({
         patient_id: "",
@@ -32,6 +33,7 @@ function Appointments() {
             setPatients(patientsData || []);
         } catch (err) {
             setError(err?.detail || err?.message || "We could not load appointments right now.");
+            toast.error(err?.detail || err?.message || "We could not load appointments right now.");
         } finally {
             setLoading(false);
         }
@@ -55,10 +57,19 @@ function Appointments() {
     const handleCreate = async (e) => {
         e.preventDefault();
         setError(null);
-        setSuccess(null);
 
         if (!selectedPatient) {
-            setError("Please select a patient before creating an appointment.");
+            toast.error("Please select a patient before creating an appointment.");
+            return;
+        }
+
+        if (!form.doctor_name.trim()) {
+            toast.error("Please enter the doctor name.");
+            return;
+        }
+
+        if (!form.appointment_date) {
+            toast.error("Please choose an appointment date.");
             return;
         }
 
@@ -74,21 +85,20 @@ function Appointments() {
             setForm({ patient_id: "", doctor_name: "", appointment_date: "", status: "Scheduled", notes: "" });
             setSelectedPatient(null);
             await fetchAppointments();
-            setSuccess("Appointment created successfully");
+            toast.success("Appointment created successfully");
         } catch (err) {
-            setError(err?.detail || err?.message || "We could not save the appointment.");
+            toast.error(err?.detail || err?.message || "We could not save the appointment.");
         }
     };
 
     const handleUpdateStatus = async (appointment, nextStatus) => {
         setError(null);
-        setSuccess(null);
         try {
-            await put(`/appointments/${appointment.id}`, null, { status: nextStatus });
+            await put(`/appointments/${appointment.id}`, { status: nextStatus });
             await fetchAppointments();
-            setSuccess("Appointment updated successfully");
+            toast.success("Appointment updated successfully");
         } catch (err) {
-            setError(err?.detail || err?.message || "We could not update the appointment.");
+            toast.error(err?.detail || err?.message || "We could not update the appointment.");
         }
     };
 
@@ -119,23 +129,37 @@ function Appointments() {
                                 setSelectedPatient(null);
                                 setForm((s) => ({ ...s, patient_id: "" }));
                             }}
+                            onQuickAdd={() => void fetchAppointments()}
                         />
                     </div>
-                    <input name="doctor_name" placeholder="Doctor Name" value={form.doctor_name} onChange={handleChange} />
-                    <input name="appointment_date" type="date" value={form.appointment_date} onChange={handleChange} />
-                    <select name="status" value={form.status} onChange={handleChange}>
-                        <option value="Scheduled">Scheduled</option>
-                        <option value="Completed">Completed</option>
-                        <option value="Cancelled">Cancelled</option>
-                    </select>
-                    <input name="notes" placeholder="Notes" value={form.notes} onChange={handleChange} />
-                    <button className="btn" type="submit" disabled={!selectedPatient}>Create appointment</button>
+                    <div className="form-field">
+                        <label htmlFor="appointment-doctor">Doctor name</label>
+                        <input id="appointment-doctor" name="doctor_name" placeholder="Doctor name" value={form.doctor_name} onChange={handleChange} />
+                    </div>
+                    <div className="form-field">
+                        <label htmlFor="appointment-date">Date</label>
+                        <input id="appointment-date" name="appointment_date" type="date" value={form.appointment_date} onChange={handleChange} />
+                    </div>
+                    <div className="form-field">
+                        <label htmlFor="appointment-status">Status</label>
+                        <select id="appointment-status" name="status" value={form.status} onChange={handleChange}>
+                            <option value="Scheduled">Scheduled</option>
+                            <option value="Completed">Completed</option>
+                            <option value="Cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                    <div className="form-field">
+                        <label htmlFor="appointment-notes">Notes</label>
+                        <input id="appointment-notes" name="notes" placeholder="Notes" value={form.notes} onChange={handleChange} />
+                    </div>
+                    <div className="full-width action-row">
+                        <button className="btn" type="submit" disabled={!selectedPatient}>Create appointment</button>
+                    </div>
                 </form>
             </section>
 
             <PatientSummaryCard patient={selectedPatient} />
 
-            {success && <div className="status-card status-card-success"><span>{success}</span></div>}
             {error && <div className="status-card status-card-error"><span>{error}</span></div>}
 
             <section className="section-card">
@@ -203,4 +227,3 @@ function Appointments() {
 }
 
 export default Appointments;
-

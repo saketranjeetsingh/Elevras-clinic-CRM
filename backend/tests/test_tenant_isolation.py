@@ -6,7 +6,7 @@ from app.models.treatment import Treatment
 from app.models.bill import Bill
 
 
-def test_doctor_cannot_access_or_modify_other_doctors_resources(client):
+def test_doctor_cannot_access_or_modify_other_doctors_resources(client, db_session):
     headers_a, doctor_a_id = signup_doctor(client, "doctor_a_cross@example.com", "Doctor A", "Clinic A")
     headers_b, doctor_b_id = signup_doctor(client, "doctor_b_cross@example.com", "Doctor B", "Clinic B")
 
@@ -45,7 +45,7 @@ def test_doctor_cannot_access_or_modify_other_doctors_resources(client):
             "patient_id": patient_b_id,
             "treatment_name": "B-only Treatment",
             "cost": 220,
-            "status": "pending",
+            "status": "Planned",
             "notes": "doctor b only",
             "treatment_date": "2026-08-19T00:00:00Z",
         },
@@ -110,7 +110,7 @@ def test_doctor_cannot_access_or_modify_other_doctors_resources(client):
             "patient_id": forged.json()["id"],
             "doctor_name": "Doctor A",
             "appointment_date": "2026-08-21",
-            "status": "pending",
+            "status": "Scheduled",
             "doctor_id": doctor_b_id,
         },
     )
@@ -160,7 +160,7 @@ def test_doctor_cannot_access_or_modify_other_doctors_resources(client):
         json={"status": "completed", "doctor_id": doctor_b_id},
     )
     assert appointment_update_forged.status_code == 200, appointment_update_forged.text
-    assert appointment_update_forged.json()["status"] == "completed"
+    assert appointment_update_forged.json()["status"] == "Completed"
 
     treatment_update_forged = client.put(
         f"/treatments/{treatment_forged.json()['id']}",
@@ -168,7 +168,7 @@ def test_doctor_cannot_access_or_modify_other_doctors_resources(client):
         json={"status": "done", "doctor_id": doctor_b_id},
     )
     assert treatment_update_forged.status_code == 200, treatment_update_forged.text
-    assert treatment_update_forged.json()["status"] == "done"
+    assert treatment_update_forged.json()["status"] == "Completed"
 
     bill_update_forged = client.put(
         f"/bills/{bill_forged.json()['id']}",
@@ -177,6 +177,18 @@ def test_doctor_cannot_access_or_modify_other_doctors_resources(client):
     )
     assert bill_update_forged.status_code == 200, bill_update_forged.text
     assert bill_update_forged.json()["amount"] == 999
+
+    forged_patient_record = db_session.query(Patient).filter(Patient.id == forged.json()["id"]).first()
+    assert forged_patient_record.doctor_id == doctor_a_id
+
+    appointment_forged_record = db_session.query(Appointment).filter(Appointment.id == appointment_forged.json()["id"]).first()
+    assert appointment_forged_record.doctor_id == doctor_a_id
+
+    treatment_forged_record = db_session.query(Treatment).filter(Treatment.id == treatment_forged.json()["id"]).first()
+    assert treatment_forged_record.doctor_id == doctor_a_id
+
+    bill_forged_record = db_session.query(Bill).filter(Bill.id == bill_forged.json()["id"]).first()
+    assert bill_forged_record.doctor_id == doctor_a_id
 
 
 def test_tenant_isolation_for_patients_appointments_treatments_and_bills(client, db_session):

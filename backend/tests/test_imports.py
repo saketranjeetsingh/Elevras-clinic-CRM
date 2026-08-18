@@ -2,9 +2,11 @@ import io
 
 from conftest import signup_doctor
 
+from app.models.patient import Patient
+
 
 def _csv_text(rows):
-    lines = ["name,phone,email,age,gender,address,blood_group,medical_history,notes,last_treatment"]
+    lines = ["name,phone,email,age,gender,blood_group,medical_history,notes,last_treatment"]
     for row in rows:
         lines.append(",".join([str(value or "") for value in row]))
     return "\n".join(lines) + "\n"
@@ -62,7 +64,7 @@ def test_preview_does_not_create_database_records(client):
     assert patient_list.json() == []
 
 
-def test_valid_csv_confirmation_imports_patients_for_authenticated_doctor(client):
+def test_valid_csv_confirmation_imports_patients_for_authenticated_doctor(client, db_session):
     headers_a, doctor_a_id = signup_doctor(client, "import_confirm@example.com", "Doctor Import Confirm", "Clinic Confirm")
 
     csv_content = "name,phone,email,age,gender\nAlice,0123000001,alice@example.com,31,female\nBob,0123000002,bob@example.com,32,male\n"
@@ -88,10 +90,12 @@ def test_valid_csv_confirmation_imports_patients_for_authenticated_doctor(client
     assert patient_list.status_code == 200, patient_list.text
     imported = patient_list.json()
     assert len(imported) == 2
-    assert {p["doctor_id"] for p in imported} == {doctor_a_id}
+    imported_ids = [patient["id"] for patient in imported]
+    records = db_session.query(Patient).filter(Patient.id.in_(imported_ids)).all()
+    assert {record.doctor_id for record in records} == {doctor_a_id}
 
 
-def test_client_supplied_doctor_id_cannot_change_ownership(client):
+def test_client_supplied_doctor_id_cannot_change_ownership(client, db_session):
     headers_a, doctor_a_id = signup_doctor(client, "doctor_ownership@example.com", "Doctor Ownership", "Clinic Ownership")
 
     payload = {
@@ -113,7 +117,8 @@ def test_client_supplied_doctor_id_cannot_change_ownership(client):
     assert response.status_code == 200, response.text
     imported = client.get("/patients/", headers=headers_a).json()
     assert len(imported) == 1
-    assert imported[0]["doctor_id"] == doctor_a_id
+    record = db_session.query(Patient).filter(Patient.id == imported[0]["id"]).first()
+    assert record.doctor_id == doctor_a_id
 
 
 def test_doctor_a_cannot_affect_doctor_b_via_import(client):
