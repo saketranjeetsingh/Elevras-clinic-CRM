@@ -28,11 +28,15 @@ export function AuthProvider({ children }) {
                 roles: userData.roles || [],
                 permissions: userData.permissions || [],
             });
+            if (userData.organization_id) {
+                localStorage.setItem("organization_id", String(userData.organization_id));
+            }
             if (userData.organizations) {
                 setOrganizations(userData.organizations);
             }
         } catch {
             localStorage.removeItem("token");
+            localStorage.removeItem("organization_id");
             setUser(null);
         } finally {
             setLoading(false);
@@ -62,11 +66,15 @@ export function AuthProvider({ children }) {
                 roles: data.roles || [],
                 permissions: data.permissions || [],
             });
+            if (data.organization_id) {
+                localStorage.setItem("organization_id", String(data.organization_id));
+            }
             if (data.organizations) {
                 setOrganizations(data.organizations);
             }
         } catch (err) {
             localStorage.removeItem("token");
+            localStorage.removeItem("organization_id");
             setUser(null);
             throw err;
         } finally {
@@ -81,6 +89,7 @@ export function AuthProvider({ children }) {
             // Ignore logout errors
         }
         localStorage.removeItem("token");
+        localStorage.removeItem("organization_id");
         setUser(null);
         setOrganizations([]);
     };
@@ -97,6 +106,9 @@ export function AuthProvider({ children }) {
             roles: data.user.roles || [],
             permissions: data.user.permissions || [],
         });
+        if (data.user.organization_id) {
+            localStorage.setItem("organization_id", String(data.user.organization_id));
+        }
         return data;
     };
 
@@ -112,6 +124,9 @@ export function AuthProvider({ children }) {
             roles: data.user.roles || [],
             permissions: data.user.permissions || [],
         });
+        if (data.user.organization_id) {
+            localStorage.setItem("organization_id", String(data.user.organization_id));
+        }
         return data;
     };
 

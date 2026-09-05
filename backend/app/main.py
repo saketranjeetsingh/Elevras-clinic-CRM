@@ -69,7 +69,10 @@ async def lifespan(app: FastAPI):
 
         # For fresh dev DBs, create tables if they don't exist
         # In production, use `alembic upgrade head` instead
-        Base.metadata.create_all(bind=engine)
+        # Set AUTO_CREATE_TABLES=true to enable (dev only)
+        if os.environ.get("AUTO_CREATE_TABLES", "false").lower() == "true":
+            Base.metadata.create_all(bind=engine)
+            logger.info("Database tables created (AUTO_CREATE_TABLES=true)")
 
     except Exception as exc:
         raise RuntimeError(

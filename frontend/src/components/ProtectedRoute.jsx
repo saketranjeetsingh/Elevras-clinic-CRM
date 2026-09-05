@@ -10,9 +10,7 @@ const routePermissions = {
     "/appointments": ["appointment:view"],
     "/treatments": ["treatment:view"],
     "/bills": ["bill:view"],
-    "/organizations": ["org:manage"],
-    "/users": ["user:manage"],
-    "/roles": ["role:manage"],
+    "/settings": ["user:manage"],
 };
 
 function getRequiredPermissions(pathname) {

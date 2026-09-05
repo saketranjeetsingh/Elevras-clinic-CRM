@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useContext } from "react";
 import { Navigate } from "react-router-dom";
-import api from "../services/api";
+import { get, post, put, del } from "../services/api";
 import AuthContext from "../contexts/AuthContext";
 import ConfirmModal from "../components/ConfirmModal";
 import Icon from "../components/Icon";
@@ -28,8 +28,8 @@ export default function SettingsPage() {
         try {
             setLoading(true);
             const [usersRes, rolesRes] = await Promise.all([
-                api.get("/users"),
-                api.get("/roles"),
+                get("/users"),
+                get("/roles"),
             ]);
             setUsers(usersRes);
             setRoles(rolesRes);
@@ -55,13 +55,13 @@ export default function SettingsPage() {
         setSubmitting(true);
         try {
             if (editingUser) {
-                await api.put(`/users/${editingUser.id}`, {
+                await put(`/users/${editingUser.id}`, {
                     email: formData.email,
                     name: formData.name,
                     is_active: formData.is_active,
                 });
             } else {
-                await api.post("/users", {
+                await post("/users", {
                     email: formData.email,
                     name: formData.name,
                     role_code: formData.role_code,
@@ -104,7 +104,7 @@ export default function SettingsPage() {
     const handleDeactivate = async (userId) => {
         if (!window.confirm("Are you sure you want to deactivate this user?")) return;
         try {
-            await api.post(`/users/${userId}/deactivate`);
+            await post(`/users/${userId}/deactivate`);
             await loadData();
         } catch (err) {
             setError(err.detail || "Failed to deactivate user");
@@ -113,7 +113,7 @@ export default function SettingsPage() {
 
     const handleActivate = async (userId) => {
         try {
-            await api.post(`/users/${userId}/activate`);
+            await post(`/users/${userId}/activate`);
             await loadData();
         } catch (err) {
             setError(err.detail || "Failed to activate user");

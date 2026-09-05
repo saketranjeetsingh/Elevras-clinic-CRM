@@ -93,10 +93,12 @@ function normalizeError(error) {
 api.interceptors.request.use(
     (config) => {
         const token = localStorage.getItem("token");
+        const orgId = localStorage.getItem("organization_id");
 
         config.headers = {
             ...(config.headers || {}),
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            ...(orgId ? { "X-Organization-ID": orgId } : {}),
         };
 
         return config;

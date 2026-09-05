@@ -512,6 +512,10 @@ async def get_me(
     roles = payload.get("roles", [])
     permissions = payload.get("permissions", [])
 
+    # Get user's organizations
+    user_roles = db.query(UserRole).filter(UserRole.user_id == db_user.id).all()
+    org_ids = list(set(ur.organization_id for ur in user_roles if ur.organization_id))
+
     # Get doctor profile for the organization
     doctor_profile = None
     if org_id:
@@ -528,5 +532,6 @@ async def get_me(
         "organization_id": org_id,
         "roles": roles,
         "permissions": permissions,
+        "organizations": org_ids,
         "doctor_profile_id": doctor_profile.id if doctor_profile else None,
     }

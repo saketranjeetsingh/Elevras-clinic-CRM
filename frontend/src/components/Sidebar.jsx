@@ -6,19 +6,27 @@ import ConfirmModal from "./ConfirmModal";
 import { useTheme } from "./ThemeContext";
 
 export default function Sidebar() {
-    const { user, logout, hasPermission } = useContext(AuthContext);
+    const { user, logout, hasPermission, organizations, switchOrganization } = useContext(AuthContext);
     const { theme, toggleTheme } = useTheme();
     const navigate = useNavigate();
     const [logoutOpen, setLogoutOpen] = useState(false);
+    const [orgSwitcherOpen, setOrgSwitcherOpen] = useState(false);
 
     const doctorName = user?.doctor_name || user?.name || "Doctor";
     const clinicName = user?.clinic_name || "Your Clinic";
     const displayName = doctorName.startsWith("Dr.") ? doctorName : `Dr. ${doctorName}`;
+    const showOrgSwitcher = organizations.length > 1;
 
     const handleLogout = () => {
         setLogoutOpen(false);
         logout();
         navigate("/");
+    };
+
+    const handleOrgSwitch = async (orgId) => {
+        await switchOrganization(orgId);
+        setOrgSwitcherOpen(false);
+        window.location.reload();
     };
 
     const navItems = [
@@ -70,6 +78,37 @@ export default function Sidebar() {
                     </NavLink>
                 ))}
             </nav>
+
+            {showOrgSwitcher && (
+                <div className="sidebar-section">
+                    <button
+                        className="sidebar-org-switcher"
+                        type="button"
+                        onClick={() => setOrgSwitcherOpen(!orgSwitcherOpen)}
+                        aria-expanded={orgSwitcherOpen}
+                        aria-label="Switch organization"
+                    >
+                        <Icon name="building" size={16} />
+                        <span>Organization</span>
+                        <Icon name={orgSwitcherOpen ? "chevron-up" : "chevron-down"} size={14} />
+                    </button>
+                    {orgSwitcherOpen && (
+                        <ul className="org-switcher-dropdown">
+                            {organizations.map((orgId) => (
+                                <li key={orgId}>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleOrgSwitch(orgId)}
+                                        className={orgId === user?.organization_id ? "active" : ""}
+                                    >
+                                        Organization #{orgId}
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+            )}
 
             <div className="sidebar-footer">
                 <button className="theme-toggle" type="button" onClick={toggleTheme} aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}>
