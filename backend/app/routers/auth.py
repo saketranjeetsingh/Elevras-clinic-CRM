@@ -518,11 +518,20 @@ async def get_me(
 
     # Get doctor profile for the organization
     doctor_profile = None
+    clinic_name = None
+    doctor_name = None
     if org_id:
         doctor_profile = db.query(DoctorProfile).filter(
             DoctorProfile.user_id == db_user.id,
             DoctorProfile.organization_id == org_id,
         ).first()
+        if doctor_profile:
+            doctor_name = doctor_profile.name
+        # Get clinic name from organization
+        from app.models.organization import Organization
+        org = db.query(Organization).filter(Organization.id == org_id).first()
+        if org:
+            clinic_name = org.name
 
     return {
         "id": db_user.id,
@@ -534,4 +543,6 @@ async def get_me(
         "permissions": permissions,
         "organizations": org_ids,
         "doctor_profile_id": doctor_profile.id if doctor_profile else None,
+        "clinic_name": clinic_name,
+        "doctor_name": doctor_name,
     }

@@ -1,9 +1,26 @@
 import os
+from pathlib import Path
+from dotenv import load_dotenv
 
-os.environ.setdefault(
-    "DATABASE_URL",
-    "postgresql://postgres:postgres@localhost:5432/elevras_db_test",
-)
+# Load .env from backend directory (gitignored, contains real credentials)
+backend_dir = Path(__file__).parent.parent
+load_dotenv(backend_dir / ".env")
+
+# Test database URL: prefer explicit TEST_DATABASE_URL, otherwise derive from DATABASE_URL
+# by swapping the database name to elevras_db_test
+test_db_url = os.environ.get("TEST_DATABASE_URL")
+if not test_db_url:
+    db_url = os.environ.get("DATABASE_URL", "")
+    if db_url:
+        # Replace database name with test database
+        from urllib.parse import urlparse, urlunparse
+        parsed = urlparse(db_url)
+        test_db_url = urlunparse(parsed._replace(path="/elevras_db_test"))
+    else:
+        # Fallback for CI/local without .env - requires manual setup
+        test_db_url = "postgresql://postgres:postgres@localhost:5432/elevras_db_test"
+
+os.environ.setdefault("DATABASE_URL", test_db_url)
 os.environ.setdefault("SECRET_KEY", "test-secret-key-that-is-long-enough-for-tests")
 os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
 
