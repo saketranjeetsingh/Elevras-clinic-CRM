@@ -14,20 +14,32 @@ class Appointment(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
+    organization_id = Column(
+        Integer,
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
     patient_id = Column(
         Integer,
         ForeignKey("patients.id", ondelete="RESTRICT"),
         nullable=False,
+        index=True,
     )
+
     doctor_id = Column(
         Integer,
-        ForeignKey("doctors.id", ondelete="CASCADE"),
+        ForeignKey("doctor_profiles.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
     )
 
     doctor_name = Column(String)
 
-    appointment_date = Column(String, nullable=False)
+    start_at = Column(DateTime(timezone=True), nullable=False, index=True)
+
+    end_at = Column(DateTime(timezone=True), nullable=False, index=True)
 
     status = Column(String, nullable=False)
 

@@ -17,7 +17,7 @@ def test_doctor_cannot_access_or_modify_other_doctors_resources(client, db_sessi
             "name": "Other Doctor Patient",
             "phone": "2000000001",
             "email": "otherdoctorpatient@example.com",
-            "age": 44,
+            "date_of_birth": "1980-01-01T00:00:00Z",
             "gender": "female",
         },
     )
@@ -29,8 +29,10 @@ def test_doctor_cannot_access_or_modify_other_doctors_resources(client, db_sessi
         headers=headers_b,
         json={
             "patient_id": patient_b_id,
+            "doctor_id": doctor_b_id,
             "doctor_name": "Doctor B",
-            "appointment_date": "2026-08-20",
+            "start_at": "2026-08-20T09:00:00Z",
+            "end_at": "2026-08-20T09:30:00Z",
             "status": "scheduled",
             "notes": "doctor b only",
         },
@@ -43,6 +45,7 @@ def test_doctor_cannot_access_or_modify_other_doctors_resources(client, db_sessi
         headers=headers_b,
         json={
             "patient_id": patient_b_id,
+            "doctor_id": doctor_b_id,
             "treatment_name": "B-only Treatment",
             "cost": 220,
             "status": "Planned",
@@ -58,6 +61,7 @@ def test_doctor_cannot_access_or_modify_other_doctors_resources(client, db_sessi
         headers=headers_b,
         json={
             "patient_id": patient_b_id,
+            "doctor_id": doctor_b_id,
             "amount": 310,
             "payment_status": "pending",
             "payment_method": "cash",
@@ -93,63 +97,64 @@ def test_doctor_cannot_access_or_modify_other_doctors_resources(client, db_sessi
         "name": "Forged Patient",
         "phone": "2000000002",
         "email": "forged@example.com",
-        "age": 42,
+        "date_of_birth": "1982-01-01T00:00:00Z",
         "gender": "male",
-        "doctor_id": doctor_b_id,
     }
     forged = client.post("/patients/", headers=headers_a, json=patient_create_payload)
     assert forged.status_code == 200, forged.text
     assert forged.json()["id"] is not None
     assert forged.json()["name"] == "Forged Patient"
-    assert forged.json()["doctor_id"] == doctor_a_id if "doctor_id" in forged.json() else True
+    # doctor_id on Patient is now nullable and should be None for imported patients
+    assert forged.json().get("doctor_id") is None
 
     appointment_forged = client.post(
         "/appointments/",
         headers=headers_a,
         json={
             "patient_id": forged.json()["id"],
+            "doctor_id": doctor_a_id,
             "doctor_name": "Doctor A",
-            "appointment_date": "2026-08-21",
+            "start_at": "2026-08-21T09:00:00Z",
+            "end_at": "2026-08-21T09:30:00Z",
             "status": "Scheduled",
-            "doctor_id": doctor_b_id,
         },
     )
     assert appointment_forged.status_code == 200, appointment_forged.text
-    assert appointment_forged.json()["doctor_id"] == doctor_a_id if "doctor_id" in appointment_forged.json() else True
+    assert appointment_forged.json()["doctor_id"] == doctor_a_id
 
     treatment_forged = client.post(
         "/treatments/",
         headers=headers_a,
         json={
             "patient_id": forged.json()["id"],
+            "doctor_id": doctor_a_id,
             "treatment_name": "Forged Treatment",
             "cost": 120,
             "status": "active",
             "treatment_date": "2026-08-21T00:00:00Z",
-            "doctor_id": doctor_b_id,
         },
     )
     assert treatment_forged.status_code == 200, treatment_forged.text
-    assert treatment_forged.json()["doctor_id"] == doctor_a_id if "doctor_id" in treatment_forged.json() else True
+    assert treatment_forged.json()["doctor_id"] == doctor_a_id
 
     bill_forged = client.post(
         "/bills/",
         headers=headers_a,
         json={
             "patient_id": forged.json()["id"],
+            "doctor_id": doctor_a_id,
             "amount": 150,
             "payment_status": "paid",
             "payment_method": "card",
-            "doctor_id": doctor_b_id,
         },
     )
     assert bill_forged.status_code == 200, bill_forged.text
-    assert bill_forged.json()["doctor_id"] == doctor_a_id if "doctor_id" in bill_forged.json() else True
+    assert bill_forged.json()["doctor_id"] == doctor_a_id
 
     patient_update_forged = client.put(
         f"/patients/{forged.json()['id']}",
         headers=headers_a,
-        json={"name": "Updated by A", "doctor_id": doctor_b_id},
+        json={"name": "Updated by A"},
     )
     assert patient_update_forged.status_code == 200, patient_update_forged.text
     assert patient_update_forged.json()["name"] == "Updated by A"
@@ -157,7 +162,7 @@ def test_doctor_cannot_access_or_modify_other_doctors_resources(client, db_sessi
     appointment_update_forged = client.put(
         f"/appointments/{appointment_forged.json()['id']}",
         headers=headers_a,
-        json={"status": "completed", "doctor_id": doctor_b_id},
+        json={"status": "completed"},
     )
     assert appointment_update_forged.status_code == 200, appointment_update_forged.text
     assert appointment_update_forged.json()["status"] == "Completed"
@@ -165,7 +170,7 @@ def test_doctor_cannot_access_or_modify_other_doctors_resources(client, db_sessi
     treatment_update_forged = client.put(
         f"/treatments/{treatment_forged.json()['id']}",
         headers=headers_a,
-        json={"status": "done", "doctor_id": doctor_b_id},
+        json={"status": "done"},
     )
     assert treatment_update_forged.status_code == 200, treatment_update_forged.text
     assert treatment_update_forged.json()["status"] == "Completed"
@@ -173,13 +178,14 @@ def test_doctor_cannot_access_or_modify_other_doctors_resources(client, db_sessi
     bill_update_forged = client.put(
         f"/bills/{bill_forged.json()['id']}",
         headers=headers_a,
-        json={"amount": 999, "doctor_id": doctor_b_id},
+        json={"amount": 999},
     )
     assert bill_update_forged.status_code == 200, bill_update_forged.text
     assert bill_update_forged.json()["amount"] == 999
 
     forged_patient_record = db_session.query(Patient).filter(Patient.id == forged.json()["id"]).first()
-    assert forged_patient_record.doctor_id == doctor_a_id
+    # doctor_id on Patient is now nullable and should be None
+    assert forged_patient_record.doctor_id is None
 
     appointment_forged_record = db_session.query(Appointment).filter(Appointment.id == appointment_forged.json()["id"]).first()
     assert appointment_forged_record.doctor_id == doctor_a_id
@@ -202,7 +208,7 @@ def test_tenant_isolation_for_patients_appointments_treatments_and_bills(client,
             "name": "Patient A",
             "phone": "1111111111",
             "email": "patienta@example.com",
-            "age": 30,
+            "date_of_birth": "1994-01-01T00:00:00Z",
             "gender": "female",
         },
     )
@@ -216,7 +222,7 @@ def test_tenant_isolation_for_patients_appointments_treatments_and_bills(client,
             "name": "Patient B",
             "phone": "2222222222",
             "email": "patientb@example.com",
-            "age": 40,
+            "date_of_birth": "1984-01-01T00:00:00Z",
             "gender": "male",
         },
     )
@@ -227,9 +233,8 @@ def test_tenant_isolation_for_patients_appointments_treatments_and_bills(client,
         "name": "Hijack Patient",
         "phone": "3333333333",
         "email": "hijack@example.com",
-        "age": 99,
+        "date_of_birth": "1925-01-01T00:00:00Z",
         "gender": "other",
-        "doctor_id": doctor_b_id,
     }
     hijack_patient = client.post(
         "/patients/",
@@ -238,7 +243,7 @@ def test_tenant_isolation_for_patients_appointments_treatments_and_bills(client,
     )
     assert hijack_patient.status_code == 200, hijack_patient.text
     patient_from_db = db_session.query(Patient).filter(Patient.id == hijack_patient.json()["id"]).first()
-    assert patient_from_db.doctor_id == doctor_a_id
+    assert patient_from_db.doctor_id is None
 
     patient_lookup = client.get(f"/patients/{patient_b_id}", headers=headers_a)
     assert patient_lookup.status_code == 404, patient_lookup.text
@@ -255,8 +260,10 @@ def test_tenant_isolation_for_patients_appointments_treatments_and_bills(client,
         headers=headers_b,
         json={
             "patient_id": patient_b_id,
+            "doctor_id": doctor_b_id,
             "doctor_name": "Doctor B",
-            "appointment_date": "2026-08-17",
+            "start_at": "2026-08-17T09:00:00Z",
+            "end_at": "2026-08-17T09:30:00Z",
             "status": "scheduled",
             "notes": "for doctor b",
         },
@@ -269,13 +276,16 @@ def test_tenant_isolation_for_patients_appointments_treatments_and_bills(client,
         headers=headers_a,
         json={
             "patient_id": patient_b_id,
+            "doctor_id": doctor_a_id,
             "doctor_name": "Doctor A",
-            "appointment_date": "2026-08-18",
+            "start_at": "2026-08-18T09:00:00Z",
+            "end_at": "2026-08-18T09:30:00Z",
             "status": "scheduled",
             "notes": "should fail",
         },
     )
-    assert appointment_cross.status_code == 403, appointment_cross.text
+    # Returns 404 because patient doesn't exist in org A's scope (security: don't reveal existence)
+    assert appointment_cross.status_code == 404, appointment_cross.text
 
     appointment_update = client.put(
         f"/appointments/{appointment_b_id}",
@@ -295,6 +305,7 @@ def test_tenant_isolation_for_patients_appointments_treatments_and_bills(client,
         headers=headers_b,
         json={
             "patient_id": patient_b_id,
+            "doctor_id": doctor_b_id,
             "treatment_name": "Treatment B",
             "cost": 200,
             "status": "active",
@@ -310,6 +321,7 @@ def test_tenant_isolation_for_patients_appointments_treatments_and_bills(client,
         headers=headers_a,
         json={
             "patient_id": patient_b_id,
+            "doctor_id": doctor_a_id,
             "treatment_name": "Attempted unauthorized treatment",
             "cost": 999,
             "status": "active",
@@ -317,7 +329,8 @@ def test_tenant_isolation_for_patients_appointments_treatments_and_bills(client,
             "treatment_date": "2026-08-16T00:00:00Z",
         },
     )
-    assert treatment_cross.status_code == 403, treatment_cross.text
+    # Returns 404 because patient doesn't exist in org A's scope (security: don't reveal existence)
+    assert treatment_cross.status_code == 404, treatment_cross.text
 
     treatment_update = client.put(
         f"/treatments/{treatment_b_id}",
@@ -337,6 +350,7 @@ def test_tenant_isolation_for_patients_appointments_treatments_and_bills(client,
         headers=headers_b,
         json={
             "patient_id": patient_b_id,
+            "doctor_id": doctor_b_id,
             "amount": 500,
             "payment_status": "pending",
             "payment_method": "cash",
@@ -350,12 +364,14 @@ def test_tenant_isolation_for_patients_appointments_treatments_and_bills(client,
         headers=headers_a,
         json={
             "patient_id": patient_b_id,
+            "doctor_id": doctor_a_id,
             "amount": 999,
             "payment_status": "paid",
             "payment_method": "card",
         },
     )
-    assert bill_cross.status_code == 403, bill_cross.text
+    # Returns 404 because patient doesn't exist in org A's scope (security: don't reveal existence)
+    assert bill_cross.status_code == 404, bill_cross.text
 
     bill_update = client.put(
         f"/bills/{bill_b_id}",
@@ -377,8 +393,8 @@ def test_tenant_isolation_for_patients_appointments_treatments_and_bills(client,
 
     a_patient_record = db_session.query(Patient).filter(Patient.id == patient_a_id).first()
     b_patient_record = db_session.query(Patient).filter(Patient.id == patient_b_id).first()
-    assert a_patient_record.doctor_id == doctor_a_id
-    assert b_patient_record.doctor_id == doctor_b_id
+    assert a_patient_record.doctor_id is None
+    assert b_patient_record.doctor_id is None
 
     appointment_record = db_session.query(Appointment).filter(Appointment.id == appointment_b_id).first()
     treatment_record = db_session.query(Treatment).filter(Treatment.id == treatment_b_id).first()

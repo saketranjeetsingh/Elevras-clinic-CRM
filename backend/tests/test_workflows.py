@@ -9,7 +9,7 @@ def _create_patient(client, headers, phone, email, name="Workflow Patient"):
             "name": name,
             "phone": phone,
             "email": email,
-            "age": 40,
+            "date_of_birth": "1984-01-01T00:00:00Z",
             "gender": "female",
         },
     )
@@ -18,7 +18,7 @@ def _create_patient(client, headers, phone, email, name="Workflow Patient"):
 
 
 def test_patient_profile_returns_scoped_history_and_stats(client):
-    headers, _ = signup_doctor(client, "profile_a@example.com", "Doctor A", "Clinic A")
+    headers, doctor_profile_id = signup_doctor(client, "profile_a@example.com", "Doctor A", "Clinic A")
     patient_id = _create_patient(client, headers, "9100000001", "profilepatient@example.com")
 
     appointment = client.post(
@@ -26,8 +26,10 @@ def test_patient_profile_returns_scoped_history_and_stats(client):
         headers=headers,
         json={
             "patient_id": patient_id,
+            "doctor_id": doctor_profile_id,
             "doctor_name": "Doctor A",
-            "appointment_date": "2026-09-10",
+            "start_at": "2026-09-10T09:00:00Z",
+            "end_at": "2026-09-10T09:30:00Z",
             "status": "Scheduled",
             "notes": "profile appointment",
         },
@@ -39,6 +41,7 @@ def test_patient_profile_returns_scoped_history_and_stats(client):
         headers=headers,
         json={
             "patient_id": patient_id,
+            "doctor_id": doctor_profile_id,
             "treatment_name": "Root Canal",
             "cost": 300,
             "status": "In Progress",
@@ -52,6 +55,7 @@ def test_patient_profile_returns_scoped_history_and_stats(client):
         headers=headers,
         json={
             "patient_id": patient_id,
+            "doctor_id": doctor_profile_id,
             "amount": 250,
             "payment_status": "Pending",
             "payment_method": "Cash",
@@ -77,7 +81,7 @@ def test_patient_profile_returns_scoped_history_and_stats(client):
 
 
 def test_appointment_partial_update_preserves_other_fields(client):
-    headers, _ = signup_doctor(client, "appt_partial@example.com")
+    headers, doctor_profile_id = signup_doctor(client, "appt_partial@example.com")
     patient_id = _create_patient(client, headers, "9100000002", "apptpartial@example.com")
 
     created = client.post(
@@ -85,8 +89,10 @@ def test_appointment_partial_update_preserves_other_fields(client):
         headers=headers,
         json={
             "patient_id": patient_id,
+            "doctor_id": doctor_profile_id,
             "doctor_name": "Dr Partial",
-            "appointment_date": "2026-09-15",
+            "start_at": "2026-09-15T09:00:00Z",
+            "end_at": "2026-09-15T09:30:00Z",
             "status": "Scheduled",
             "notes": "keep these notes",
         },
@@ -103,7 +109,11 @@ def test_appointment_partial_update_preserves_other_fields(client):
     body = updated.json()
     assert body["status"] == "Completed"
     assert body["notes"] == "keep these notes"
-    assert body["appointment_date"] == "2026-09-15"
+    # Compare datetime values (allow different timezone representations)
+    from datetime import datetime
+    expected_start = datetime.fromisoformat("2026-09-15T09:00:00+00:00")
+    actual_start = datetime.fromisoformat(body["start_at"])
+    assert actual_start == expected_start
     assert body["doctor_name"] == "Dr Partial"
     assert body["patient_id"] == patient_id
 
@@ -123,7 +133,7 @@ def test_appointment_partial_update_preserves_other_fields(client):
 
 
 def test_treatment_create_update_delete(client):
-    headers, _ = signup_doctor(client, "treatment_flow@example.com")
+    headers, doctor_profile_id = signup_doctor(client, "treatment_flow@example.com")
     patient_id = _create_patient(client, headers, "9100000003", "treatmentflow@example.com")
 
     created = client.post(
@@ -131,6 +141,7 @@ def test_treatment_create_update_delete(client):
         headers=headers,
         json={
             "patient_id": patient_id,
+            "doctor_id": doctor_profile_id,
             "treatment_name": "Scaling",
             "cost": 150,
             "status": "Planned",
@@ -164,7 +175,7 @@ def test_treatment_create_update_delete(client):
 
 
 def test_bill_create_update_delete(client):
-    headers, _ = signup_doctor(client, "bill_flow@example.com")
+    headers, doctor_profile_id = signup_doctor(client, "bill_flow@example.com")
     patient_id = _create_patient(client, headers, "9100000004", "billflow@example.com")
 
     created = client.post(
@@ -172,6 +183,7 @@ def test_bill_create_update_delete(client):
         headers=headers,
         json={
             "patient_id": patient_id,
+            "doctor_id": doctor_profile_id,
             "amount": 500,
             "payment_status": "Pending",
             "payment_method": "Card",
@@ -213,7 +225,7 @@ def test_patient_profile_is_tenant_scoped(client):
             "name": "Tenant B Patient",
             "phone": "9100000005",
             "email": "tenantb@example.com",
-            "age": 33,
+            "date_of_birth": "1991-01-01T00:00:00Z",
             "gender": "male",
         },
     )
@@ -250,7 +262,7 @@ def test_get_patients_supports_pagination(client):
 
 
 def test_get_patients_derives_latest_treatment_name(client):
-    headers, _ = signup_doctor(client, "lasttx_list@example.com", "Doctor List", "Clinic")
+    headers, doctor_profile_id = signup_doctor(client, "lasttx_list@example.com", "Doctor List", "Clinic")
 
     patient_id = _create_patient(client, headers, "6200000100", "lasttxlist@example.com", "Patient List")
 
@@ -259,6 +271,7 @@ def test_get_patients_derives_latest_treatment_name(client):
         headers=headers,
         json={
             "patient_id": patient_id,
+            "doctor_id": doctor_profile_id,
             "treatment_name": "Old Treatment",
             "cost": 100,
             "status": "Completed",
@@ -272,6 +285,7 @@ def test_get_patients_derives_latest_treatment_name(client):
         headers=headers,
         json={
             "patient_id": patient_id,
+            "doctor_id": doctor_profile_id,
             "treatment_name": "New Treatment",
             "cost": 200,
             "status": "Planned",

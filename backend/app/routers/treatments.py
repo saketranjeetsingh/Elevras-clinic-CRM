@@ -1,19 +1,23 @@
 from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import HTTPException
+from fastapi import Request
 
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
-
 from app.models.treatment import Treatment
+from app.models.patient import Patient
+from app.models.user import User
 
 from app.schemas.treatment import TreatmentCreate
 from app.schemas.treatment import TreatmentResponse
 from app.schemas.treatment import TreatmentUpdate
 
-from app.dependencies import get_current_doctor
-from app.dependencies import get_patient_for_current_doctor
+from app.dependencies import get_db
+from app.dependencies import get_current_user_with_org
+from app.dependencies import get_organization_id
+from app.dependencies import require_permission
 
 
 router = APIRouter(
@@ -22,36 +26,31 @@ router = APIRouter(
 )
 
 
-def get_db():
-
-    db = SessionLocal()
-
-    try:
-        yield db
-
-    finally:
-        db.close()
-
-
 @router.post("", response_model=TreatmentResponse)
 @router.post("/", response_model=TreatmentResponse)
 def create_treatment(
     treatment: TreatmentCreate,
-    current_doctor: dict = Depends(
-        get_current_doctor
-    ),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(require_permission("treatment:create")),
+    db: Session = Depends(get_db),
+    request: Request = None,
 ):
+    org_id = get_organization_id(request)
 
-    get_patient_for_current_doctor(
-        treatment.patient_id,
-        current_doctor,
-        db
-    )
+    patient = db.query(Patient).filter(
+        Patient.id == treatment.patient_id,
+        Patient.organization_id == org_id
+    ).first()
+
+    if not patient:
+        raise HTTPException(
+            status_code=404,
+            detail="Patient not found"
+        )
 
     new_treatment = Treatment(
-        doctor_id=current_doctor["doctor_id"],
+        organization_id=org_id,
         patient_id=treatment.patient_id,
+        doctor_id=treatment.doctor_id,
         treatment_name=treatment.treatment_name,
         cost=treatment.cost,
         status=treatment.status,
@@ -60,9 +59,7 @@ def create_treatment(
     )
 
     db.add(new_treatment)
-
     db.commit()
-
     db.refresh(new_treatment)
 
     return new_treatment
@@ -71,15 +68,14 @@ def create_treatment(
 @router.get("", response_model=list[TreatmentResponse])
 @router.get("/", response_model=list[TreatmentResponse])
 def get_treatments(
-    current_doctor: dict = Depends(
-        get_current_doctor
-    ),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(require_permission("treatment:view")),
+    db: Session = Depends(get_db),
+    request: Request = None,
 ):
+    org_id = get_organization_id(request)
 
     return db.query(Treatment).filter(
-        Treatment.doctor_id ==
-        current_doctor["doctor_id"]
+        Treatment.organization_id == org_id
     ).all()
 
 
@@ -87,15 +83,15 @@ def get_treatments(
 def update_treatment(
     treatment_id: int,
     treatment_data: TreatmentUpdate,
-    current_doctor: dict = Depends(
-        get_current_doctor
-    ),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(require_permission("treatment:edit")),
+    db: Session = Depends(get_db),
+    request: Request = None,
 ):
+    org_id = get_organization_id(request)
 
     treatment = db.query(Treatment).filter(
         Treatment.id == treatment_id,
-        Treatment.doctor_id == current_doctor["doctor_id"]
+        Treatment.organization_id == org_id
     ).first()
 
     if not treatment:
@@ -105,8 +101,19 @@ def update_treatment(
         )
 
     if treatment_data.patient_id is not None:
-        get_patient_for_current_doctor(treatment_data.patient_id, current_doctor, db)
+        patient = db.query(Patient).filter(
+            Patient.id == treatment_data.patient_id,
+            Patient.organization_id == org_id
+        ).first()
+        if not patient:
+            raise HTTPException(
+                status_code=404,
+                detail="Patient not found"
+            )
         treatment.patient_id = treatment_data.patient_id
+
+    if treatment_data.doctor_id is not None:
+        treatment.doctor_id = treatment_data.doctor_id
 
     if treatment_data.treatment_name is not None:
         treatment.treatment_name = treatment_data.treatment_name
@@ -124,7 +131,6 @@ def update_treatment(
         treatment.treatment_date = treatment_data.treatment_date
 
     db.commit()
-
     db.refresh(treatment)
 
     return treatment
@@ -133,12 +139,15 @@ def update_treatment(
 @router.delete("/{treatment_id}")
 def delete_treatment(
     treatment_id: int,
-    current_doctor: dict = Depends(get_current_doctor),
+    current_user: User = Depends(require_permission("treatment:delete")),
     db: Session = Depends(get_db),
+    request: Request = None,
 ):
+    org_id = get_organization_id(request)
+
     treatment = db.query(Treatment).filter(
         Treatment.id == treatment_id,
-        Treatment.doctor_id == current_doctor["doctor_id"],
+        Treatment.organization_id == org_id,
     ).first()
 
     if not treatment:

@@ -24,7 +24,7 @@ def _create_patient(client, headers, phone, email):
             "name": "Attachment Patient",
             "phone": phone,
             "email": email,
-            "age": 35,
+            "date_of_birth": "1989-01-01T00:00:00Z",
             "gender": "female",
         },
     )
@@ -55,7 +55,7 @@ def test_download_requires_authentication(client):
 
 
 def test_upload_returns_metadata_and_writes_file(client, upload_dir):
-    headers, _ = signup_doctor(client, "attach_upload@example.com", "Doctor Upload", "Clinic A")
+    headers, doctor_profile_id = signup_doctor(client, "attach_upload@example.com", "Doctor Upload", "Clinic A")
     patient_id = _create_patient(client, headers, "7000000001", "attachedupload@example.com")
 
     response = _upload(client, headers, patient_id)

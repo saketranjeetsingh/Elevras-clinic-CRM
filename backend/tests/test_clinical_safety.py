@@ -2,7 +2,7 @@ from conftest import signup_doctor
 
 
 def test_unrelated_patient_can_be_deleted(client):
-    headers_a, _ = signup_doctor(client, "clinic_delete_ok@example.com", "Doctor A", "Clinic A")
+    headers_a, doctor_profile_id = signup_doctor(client, "clinic_delete_ok@example.com", "Doctor A", "Clinic A")
 
     patient = client.post(
         "/patients/",
@@ -11,7 +11,7 @@ def test_unrelated_patient_can_be_deleted(client):
             "name": "Delete Me",
             "phone": "7777777778",
             "email": "deleteok@example.com",
-            "age": 28,
+            "date_of_birth": "1996-01-01T00:00:00Z",
             "gender": "male",
         },
     )
@@ -27,7 +27,7 @@ def test_unrelated_patient_can_be_deleted(client):
 
 
 def test_patient_delete_with_related_records_is_blocked(client):
-    headers_a, _ = signup_doctor(client, "clinic_a@example.com", "Doctor A", "Clinic A")
+    headers_a, doctor_profile_id = signup_doctor(client, "clinic_a@example.com", "Doctor A", "Clinic A")
 
     patient = client.post(
         "/patients/",
@@ -36,7 +36,7 @@ def test_patient_delete_with_related_records_is_blocked(client):
             "name": "Clinical Patient",
             "phone": "5555555555",
             "email": "clinical@example.com",
-            "age": 25,
+            "date_of_birth": "2001-01-01T00:00:00Z",
             "gender": "female",
         },
     )
@@ -48,8 +48,10 @@ def test_patient_delete_with_related_records_is_blocked(client):
         headers=headers_a,
         json={
             "patient_id": patient_id,
+            "doctor_id": doctor_profile_id,
             "doctor_name": "Doctor A",
-            "appointment_date": "2026-08-17",
+            "start_at": "2026-08-17T09:00:00Z",
+            "end_at": "2026-08-17T09:30:00Z",
             "status": "scheduled",
         },
     )
@@ -60,6 +62,7 @@ def test_patient_delete_with_related_records_is_blocked(client):
         headers=headers_a,
         json={
             "patient_id": patient_id,
+            "doctor_id": doctor_profile_id,
             "treatment_name": "Follow-up",
             "cost": 100,
             "status": "active",
@@ -73,6 +76,7 @@ def test_patient_delete_with_related_records_is_blocked(client):
         headers=headers_a,
         json={
             "patient_id": patient_id,
+            "doctor_id": doctor_profile_id,
             "amount": 200,
             "payment_status": "pending",
             "payment_method": "cash",
@@ -105,7 +109,7 @@ def test_last_treatment_cannot_be_set_via_patient_input(client):
             "name": "No Last Treatment",
             "phone": "7777777777",
             "email": "notlast@example.com",
-            "age": 35,
+            "date_of_birth": "1989-01-01T00:00:00Z",
             "gender": "male",
             "last_treatment": "Injected secret",
         },

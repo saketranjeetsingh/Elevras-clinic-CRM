@@ -17,18 +17,29 @@ class Treatment(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
+    organization_id = Column(
+        Integer,
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
     patient_id = Column(
         Integer,
         ForeignKey("patients.id", ondelete="RESTRICT"),
         nullable=False,
+        index=True,
     )
+
     doctor_id = Column(
         Integer,
-        ForeignKey("doctors.id", ondelete="CASCADE"),
+        ForeignKey("doctor_profiles.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
     )
 
     treatment_name = Column(String, nullable=False)
+
     treatment_date = Column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),

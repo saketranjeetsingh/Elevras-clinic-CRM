@@ -9,7 +9,7 @@ def _create_patient(client, headers, phone, email):
             "name": "Status Test Patient",
             "phone": phone,
             "email": email,
-            "age": 35,
+            "date_of_birth": "1989-01-01T00:00:00Z",
             "gender": "female",
         },
     )
@@ -18,7 +18,7 @@ def _create_patient(client, headers, phone, email):
 
 
 def test_appointment_status_update_via_body(client):
-    headers, _ = signup_doctor(client, "status_appt@example.com")
+    headers, doctor_profile_id = signup_doctor(client, "status_appt@example.com")
     patient_id = _create_patient(client, headers, "9999990001", "status_appt_patient@example.com")
 
     created = client.post(
@@ -26,8 +26,10 @@ def test_appointment_status_update_via_body(client):
         headers=headers,
         json={
             "patient_id": patient_id,
+            "doctor_id": doctor_profile_id,
             "doctor_name": "Dr Status",
-            "appointment_date": "2026-08-25",
+            "start_at": "2026-08-25T09:00:00Z",
+            "end_at": "2026-08-25T09:30:00Z",
             "status": "Scheduled",
             "notes": "status update test",
         },
@@ -49,7 +51,7 @@ def test_appointment_status_update_via_body(client):
 
 
 def test_treatment_status_update_via_body(client):
-    headers, _ = signup_doctor(client, "status_treatment@example.com")
+    headers, doctor_profile_id = signup_doctor(client, "status_treatment@example.com")
     patient_id = _create_patient(client, headers, "9999990002", "status_treatment_patient@example.com")
 
     created = client.post(
@@ -57,6 +59,7 @@ def test_treatment_status_update_via_body(client):
         headers=headers,
         json={
             "patient_id": patient_id,
+            "doctor_id": doctor_profile_id,
             "treatment_name": "Status Update Treatment",
             "cost": 150,
             "status": "Planned",
@@ -80,7 +83,7 @@ def test_treatment_status_update_via_body(client):
 
 
 def test_bill_payment_status_update_via_body(client):
-    headers, _ = signup_doctor(client, "status_bill@example.com")
+    headers, doctor_profile_id = signup_doctor(client, "status_bill@example.com")
     patient_id = _create_patient(client, headers, "9999990003", "status_bill_patient@example.com")
 
     created = client.post(
@@ -88,6 +91,7 @@ def test_bill_payment_status_update_via_body(client):
         headers=headers,
         json={
             "patient_id": patient_id,
+            "doctor_id": doctor_profile_id,
             "amount": 250,
             "payment_status": "Pending",
             "payment_method": "Cash",

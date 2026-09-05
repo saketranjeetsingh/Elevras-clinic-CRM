@@ -6,7 +6,7 @@ import ConfirmModal from "./ConfirmModal";
 import { useTheme } from "./ThemeContext";
 
 export default function Sidebar() {
-    const { user, logout } = useContext(AuthContext);
+    const { user, logout, hasPermission } = useContext(AuthContext);
     const { theme, toggleTheme } = useTheme();
     const navigate = useNavigate();
     const [logoutOpen, setLogoutOpen] = useState(false);
@@ -29,6 +29,10 @@ export default function Sidebar() {
         { to: "/treatments", label: "Treatments", icon: "treatments" },
         { to: "/bills", label: "Bills", icon: "bills" },
     ];
+
+    const adminNavItems = hasPermission("user:manage") ? [
+        { to: "/settings", label: "Settings", icon: "settings" },
+    ] : [];
 
     const isDark = theme === "dark";
 
@@ -54,6 +58,12 @@ export default function Sidebar() {
 
             <nav className="sidebar-nav">
                 {navItems.map((item) => (
+                    <NavLink key={item.to} to={item.to} className={({ isActive }) => (isActive ? "sidebar-link active" : "sidebar-link")}>
+                        <Icon name={item.icon} size={18} />
+                        <span>{item.label}</span>
+                    </NavLink>
+                ))}
+                {adminNavItems.map((item) => (
                     <NavLink key={item.to} to={item.to} className={({ isActive }) => (isActive ? "sidebar-link active" : "sidebar-link")}>
                         <Icon name={item.icon} size={18} />
                         <span>{item.label}</span>

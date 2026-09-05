@@ -24,7 +24,22 @@ if not DATABASE_URL:
     )
 config.set_main_option("sqlalchemy.url", DATABASE_URL)
 
-from app.models import appointment, bill, doctor, patient, treatment
+from app.models import (
+    appointment,
+    bill,
+    doctor,
+    patient,
+    treatment,
+    organization,
+    user,
+    role,
+    permission,
+    user_role,
+    role_permission,
+    doctor_profile,
+    audit_log,
+    refresh_token,
+)
 
 # Import all models so SQLAlchemy metadata includes them.
 target_metadata = Base.metadata

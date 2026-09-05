@@ -7,6 +7,7 @@ from fastapi import Depends
 from fastapi import File
 from fastapi import Form
 from fastapi import HTTPException
+from fastapi import Request
 from fastapi import UploadFile
 from fastapi.responses import FileResponse
 
@@ -15,9 +16,12 @@ from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.models.attachment import PatientAttachment
 from app.models.patient import Patient
+from app.models.user import User
 from app.schemas.attachment import AttachmentResponse
-from app.dependencies import get_current_doctor
-from app.dependencies import get_patient_for_current_doctor
+from app.dependencies import get_db
+from app.dependencies import get_current_user_with_org
+from app.dependencies import get_organization_id
+from app.dependencies import require_permission
 
 
 router = APIRouter(
@@ -50,17 +54,6 @@ def _max_upload_bytes() -> int:
     return mega_bytes * 1024 * 1024
 
 
-def get_db():
-
-    db = SessionLocal()
-
-    try:
-        yield db
-
-    finally:
-        db.close()
-
-
 def _attachment_to_dict(attachment: PatientAttachment) -> dict:
     return {
         "id": attachment.id,
@@ -75,7 +68,7 @@ def _attachment_to_dict(attachment: PatientAttachment) -> dict:
 
 
 def _attachment_path(attachment: PatientAttachment) -> Path:
-    return Path(_upload_dir()) / str(attachment.doctor_id) / str(attachment.patient_id) / attachment.stored_name
+    return Path(_upload_dir()) / str(attachment.organization_id) / str(attachment.patient_id) / attachment.stored_name
 
 
 def _safe_suffix(filename: str) -> str:
@@ -91,11 +84,22 @@ def upload_patient_attachment(
     file: UploadFile = File(...),
     category: str = Form("other"),
     notes: str = Form(""),
-    current_doctor: dict = Depends(get_current_doctor),
+    current_user: User = Depends(require_permission("attachment:upload")),
     db: Session = Depends(get_db),
+    request: Request = None,
 ):
+    org_id = get_organization_id(request)
 
-    get_patient_for_current_doctor(patient_id, current_doctor, db)
+    patient = db.query(Patient).filter(
+        Patient.id == patient_id,
+        Patient.organization_id == org_id
+    ).first()
+
+    if not patient:
+        raise HTTPException(
+            status_code=404,
+            detail="Patient not found"
+        )
 
     content_type = (file.content_type or "").lower()
     if content_type not in ALLOWED_CONTENT_TYPES:
@@ -123,7 +127,7 @@ def upload_patient_attachment(
         )
 
     stored_name = f"{uuid.uuid4().hex}{_safe_suffix(file.filename or '')}"
-    upload_path = Path(_upload_dir()) / str(current_doctor["doctor_id"]) / str(patient_id)
+    upload_path = Path(_upload_dir()) / str(org_id) / str(patient_id)
     upload_path.mkdir(parents=True, exist_ok=True)
 
     file_path = upload_path / stored_name
@@ -131,8 +135,9 @@ def upload_patient_attachment(
         target.write(content)
 
     attachment = PatientAttachment(
+        organization_id=org_id,
         patient_id=patient_id,
-        doctor_id=current_doctor["doctor_id"],
+        doctor_id=current_user.id,
         filename=(file.filename or "file").strip(),
         stored_name=stored_name,
         content_type=content_type,
@@ -151,28 +156,41 @@ def upload_patient_attachment(
 @router.get("/patients/{patient_id}/attachments", response_model=list[AttachmentResponse])
 def list_patient_attachments(
     patient_id: int,
-    current_doctor: dict = Depends(get_current_doctor),
+    current_user: User = Depends(require_permission("attachment:view")),
     db: Session = Depends(get_db),
+    request: Request = None,
 ):
+    org_id = get_organization_id(request)
 
-    get_patient_for_current_doctor(patient_id, current_doctor, db)
+    patient = db.query(Patient).filter(
+        Patient.id == patient_id,
+        Patient.organization_id == org_id
+    ).first()
+
+    if not patient:
+        raise HTTPException(
+            status_code=404,
+            detail="Patient not found"
+        )
 
     return db.query(PatientAttachment).filter(
         PatientAttachment.patient_id == patient_id,
-        PatientAttachment.doctor_id == current_doctor["doctor_id"],
+        PatientAttachment.organization_id == org_id,
     ).order_by(PatientAttachment.created_at.desc(), PatientAttachment.id.desc()).all()
 
 
 @router.get("/attachments/{attachment_id}/file")
 def download_attachment(
     attachment_id: int,
-    current_doctor: dict = Depends(get_current_doctor),
+    current_user: User = Depends(require_permission("attachment:view")),
     db: Session = Depends(get_db),
+    request: Request = None,
 ):
+    org_id = get_organization_id(request)
 
     attachment = db.query(PatientAttachment).filter(
         PatientAttachment.id == attachment_id,
-        PatientAttachment.doctor_id == current_doctor["doctor_id"],
+        PatientAttachment.organization_id == org_id,
     ).first()
 
     if not attachment:
@@ -199,13 +217,15 @@ def download_attachment(
 def delete_patient_attachment(
     patient_id: int,
     attachment_id: int,
-    current_doctor: dict = Depends(get_current_doctor),
+    current_user: User = Depends(require_permission("attachment:delete")),
     db: Session = Depends(get_db),
+    request: Request = None,
 ):
+    org_id = get_organization_id(request)
 
     patient = db.query(Patient).filter(
         Patient.id == patient_id,
-        Patient.doctor_id == current_doctor["doctor_id"],
+        Patient.organization_id == org_id,
     ).first()
 
     if not patient:
@@ -217,7 +237,7 @@ def delete_patient_attachment(
     attachment = db.query(PatientAttachment).filter(
         PatientAttachment.id == attachment_id,
         PatientAttachment.patient_id == patient_id,
-        PatientAttachment.doctor_id == current_doctor["doctor_id"],
+        PatientAttachment.organization_id == org_id,
     ).first()
 
     if not attachment:

@@ -9,19 +9,24 @@ from fastapi import Depends
 from fastapi import File
 from fastapi import HTTPException
 from fastapi import Query
+from fastapi import Request
 from fastapi import UploadFile
 
 from sqlalchemy import or_
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.dependencies import get_current_doctor
-from app.database import SessionLocal
+from app.dependencies import get_db
+from app.dependencies import get_current_user_with_org
+from app.dependencies import get_organization_id
+from app.dependencies import get_patient_for_current_user
+from app.dependencies import require_permission
 from app.models.appointment import Appointment
 from app.models.bill import Bill
 from app.models.patient import Patient
 from app.models.treatment import Treatment
-from app.models.doctor import Doctor
+from app.models.doctor_profile import DoctorProfile
+from app.models.user import User
 
 from app.schemas.patient import PatientCreate
 from app.schemas.patient import PatientResponse
@@ -40,6 +45,7 @@ FIELD_ALIASES = {
     "name": {"name", "patientname", "fullname"},
     "phone": {"phone", "phonenumber", "mobile", "mobilenumber", "contactnumber"},
     "email": {"email", "emailaddress", "patientemail"},
+    "date_of_birth": {"dateofbirth", "date_of_birth", "dob", "birthdate", "birth_date"},
     "age": {"age", "years"},
     "gender": {"gender", "sex"},
     "blood_group": {"bloodgroup", "blood_group", "bloodtype"},
@@ -59,7 +65,7 @@ def _coerce_patient_row(raw_row: dict, header_map: dict) -> dict:
         "name",
         "phone",
         "email",
-        "age",
+        "date_of_birth",
         "gender",
         "blood_group",
         "medical_history",
@@ -92,19 +98,17 @@ def _validate_patient_row(row: dict) -> tuple[bool, list[str]]:
     if email and ("@" not in email or "." not in email.split("@")[-1]):
         errors.append("email is invalid")
 
-    age_value = row.get("age")
-    if age_value not in (None, ""):
+    dob_value = row.get("date_of_birth")
+    if dob_value not in (None, ""):
         try:
-            age_int = int(str(age_value).strip())
-            if age_int < 0 or age_int > 200:
-                raise ValueError
+            datetime.fromisoformat(str(dob_value).strip().replace("Z", "+00:00"))
         except (TypeError, ValueError):
-            errors.append("age must be a valid number")
+            errors.append("date_of_birth must be a valid date (ISO format)")
 
     return not errors, errors
 
 
-def _find_patient_duplicate(db: Session, doctor_id: int, phone: str, email: str | None):
+def _find_patient_duplicate(db: Session, organization_id: int, phone: str, email: str | None):
     contact_conditions = []
     if phone:
         contact_conditions.append(Patient.phone == phone)
@@ -113,12 +117,12 @@ def _find_patient_duplicate(db: Session, doctor_id: int, phone: str, email: str 
     if not contact_conditions:
         return None
     return db.query(Patient).filter(
-        Patient.doctor_id == doctor_id,
+        Patient.organization_id == organization_id,
         or_(*contact_conditions)
     ).first()
 
 
-def _parse_csv_preview(db: Session, current_doctor: dict, csv_text: str):
+def _parse_csv_preview(db: Session, organization_id: int, csv_text: str):
     if not csv_text or not csv_text.strip():
         return {
             "total_rows": 0,
@@ -186,7 +190,7 @@ def _parse_csv_preview(db: Session, current_doctor: dict, csv_text: str):
 
         phone = str(patient_row.get("phone") or "").strip()
         email = str(patient_row.get("email") or "").strip() or None
-        duplicate = _find_patient_duplicate(db, current_doctor["doctor_id"], phone, email)
+        duplicate = _find_patient_duplicate(db, organization_id, phone, email)
         if duplicate:
             duplicates.append({
                 "row_number": row_number,
@@ -213,36 +217,29 @@ def _parse_csv_preview(db: Session, current_doctor: dict, csv_text: str):
     }
 
 
-def get_db():
-
-    db = SessionLocal()
-
-    try:
-        yield db
-
-    finally:
-        db.close()
-
-
 @router.post("/import/preview")
 def preview_patient_import(
     file: UploadFile = File(...),
     _: None = Depends(import_rate_limit),
-    current_doctor: dict = Depends(get_current_doctor),
+    current_user: User = Depends(get_current_user_with_org),
     db: Session = Depends(get_db),
+    request: Request = None,
 ):
+    org_id = get_organization_id(request)
     content = file.file.read()
     csv_text = content.decode("utf-8-sig") if isinstance(content, bytes) else str(content)
-    return _parse_csv_preview(db, current_doctor, csv_text)
+    return _parse_csv_preview(db, org_id, csv_text)
 
 
 @router.post("/import/confirm")
 def confirm_patient_import(
     payload: dict,
     _: None = Depends(import_rate_limit),
-    current_doctor: dict = Depends(get_current_doctor),
+    current_user: User = Depends(get_current_user_with_org),
     db: Session = Depends(get_db),
+    request: Request = None,
 ):
+    org_id = get_organization_id(request)
     rows = payload.get("rows", []) if isinstance(payload, dict) else []
     imported_count = 0
     skipped_duplicates = 0
@@ -257,7 +254,7 @@ def confirm_patient_import(
             "name": str(row.get("name") or "").strip(),
             "phone": str(row.get("phone") or "").strip(),
             "email": str(row.get("email") or "").strip() or None,
-            "age": row.get("age"),
+            "date_of_birth": row.get("date_of_birth"),
             "gender": str(row.get("gender") or "").strip() or None,
             "blood_group": str(row.get("blood_group") or "").strip() or None,
             "medical_history": str(row.get("medical_history") or "").strip() or None,
@@ -272,7 +269,7 @@ def confirm_patient_import(
 
         duplicate = _find_patient_duplicate(
             db,
-            current_doctor["doctor_id"],
+            org_id,
             patient_row["phone"],
             patient_row["email"],
         )
@@ -280,23 +277,22 @@ def confirm_patient_import(
             skipped_duplicates += 1
             continue
 
-        age_value = patient_row.get("age")
-        if age_value not in (None, ""):
+        dob_value = patient_row.get("date_of_birth")
+        if dob_value not in (None, ""):
             try:
-                patient_row["age"] = int(str(age_value).strip())
+                patient_row["date_of_birth"] = datetime.fromisoformat(str(dob_value).strip().replace("Z", "+00:00"))
             except (TypeError, ValueError):
                 failed_validation += 1
                 continue
         else:
-            # Convert empty string to None
-            patient_row["age"] = None
+            patient_row["date_of_birth"] = None
 
         new_patient = Patient(
-            doctor_id=current_doctor["doctor_id"],
+            organization_id=org_id,
             name=patient_row["name"],
             phone=patient_row["phone"],
             email=patient_row["email"],
-            age=patient_row.get("age"),
+            date_of_birth=patient_row.get("date_of_birth"),
             gender=patient_row.get("gender"),
             blood_group=patient_row.get("blood_group"),
             medical_history=patient_row.get("medical_history"),
@@ -318,13 +314,15 @@ def confirm_patient_import(
 @router.post("/", response_model=PatientResponse)
 def create_patient(
     patient: PatientCreate,
-    current_doctor: dict = Depends(get_current_doctor),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(require_permission("patient:create")),
+    db: Session = Depends(get_db),
+    request: Request = None,
 ):
+    org_id = get_organization_id(request)
 
     existing_patient = _find_patient_duplicate(
         db,
-        current_doctor["doctor_id"],
+        org_id,
         patient.phone,
         patient.email,
     )
@@ -336,11 +334,11 @@ def create_patient(
         )
 
     new_patient = Patient(
-        doctor_id=current_doctor["doctor_id"],
+        organization_id=org_id,
         name=patient.name,
         phone=patient.phone,
         email=patient.email,
-        age=patient.age,
+        date_of_birth=patient.date_of_birth,
         gender=patient.gender,
         blood_group=patient.blood_group,
         medical_history=patient.medical_history,
@@ -348,9 +346,7 @@ def create_patient(
     )
 
     db.add(new_patient)
-
     db.commit()
-
     db.refresh(new_patient)
 
     return new_patient
@@ -359,14 +355,16 @@ def create_patient(
 @router.get("", response_model=list[PatientResponse])
 @router.get("/", response_model=list[PatientResponse])
 def get_patients(
-    current_doctor: dict = Depends(get_current_doctor),
+    current_user: User = Depends(require_permission("patient:view")),
     db: Session = Depends(get_db),
+    request: Request = None,
     skip: int = Query(0, ge=0),
     limit: int | None = Query(None, ge=1, le=500),
 ):
+    org_id = get_organization_id(request)
 
     query = db.query(Patient).filter(
-        Patient.doctor_id == current_doctor["doctor_id"]
+        Patient.organization_id == org_id
     ).order_by(Patient.id.desc())
 
     patients = query.offset(skip).limit(limit).all() if limit else query.all()
@@ -389,7 +387,7 @@ def get_patients(
             )
             .filter(
                 Treatment.patient_id.in_(patient_ids),
-                Treatment.doctor_id == current_doctor["doctor_id"],
+                Treatment.organization_id == org_id,
             )
             .subquery()
         )
@@ -421,16 +419,18 @@ def get_patients(
     return patients
 
 
-@router.get("/{patient_id}/profile", response_model=PatientProfileResponse)
+@router.get("/{patient_id}/profile")
 def get_patient_profile(
     patient_id: int,
-    current_doctor: dict = Depends(get_current_doctor),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(require_permission("patient:view")),
+    db: Session = Depends(get_db),
+    request: Request = None,
 ):
+    org_id = get_organization_id(request)
 
     patient = db.query(Patient).filter(
         Patient.id == patient_id,
-        Patient.doctor_id == current_doctor["doctor_id"]
+        Patient.organization_id == org_id
     ).first()
 
     if not patient:
@@ -441,21 +441,21 @@ def get_patient_profile(
 
     appointments = db.query(Appointment).filter(
         Appointment.patient_id == patient_id,
-        Appointment.doctor_id == current_doctor["doctor_id"]
+        Appointment.organization_id == org_id
     ).all()
 
     treatments = db.query(Treatment).filter(
         Treatment.patient_id == patient_id,
-        Treatment.doctor_id == current_doctor["doctor_id"]
+        Treatment.organization_id == org_id
     ).all()
 
     bills = db.query(Bill).filter(
         Bill.patient_id == patient_id,
-        Bill.doctor_id == current_doctor["doctor_id"]
+        Bill.organization_id == org_id
     ).all()
 
     doctor_ids = {treatment.doctor_id for treatment in treatments if treatment.doctor_id is not None}
-    doctors = db.query(Doctor).filter(Doctor.id.in_(doctor_ids)).all() if doctor_ids else []
+    doctors = db.query(DoctorProfile).filter(DoctorProfile.id.in_(doctor_ids)).all() if doctor_ids else []
     doctor_map = {doctor.id: doctor.name for doctor in doctors}
 
     normalized_treatments = []
@@ -507,22 +507,8 @@ def get_patient_profile(
 
 @router.get("/{patient_id}", response_model=PatientResponse)
 def get_patient(
-    patient_id: int,
-    current_doctor: dict = Depends(get_current_doctor),
-    db: Session = Depends(get_db)
+    patient: Patient = Depends(get_patient_for_current_user),
 ):
-
-    patient = db.query(Patient).filter(
-        Patient.id == patient_id,
-        Patient.doctor_id == current_doctor["doctor_id"]
-    ).first()
-
-    if not patient:
-        raise HTTPException(
-            status_code=404,
-            detail="Patient not found"
-        )
-
     return patient
 
 
@@ -530,13 +516,15 @@ def get_patient(
 def update_patient(
     patient_id: int,
     updated_patient: PatientUpdate,
-    current_doctor: dict = Depends(get_current_doctor),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(require_permission("patient:edit")),
+    db: Session = Depends(get_db),
+    request: Request = None,
 ):
+    org_id = get_organization_id(request)
 
     patient = db.query(Patient).filter(
         Patient.id == patient_id,
-        Patient.doctor_id == current_doctor["doctor_id"]
+        Patient.organization_id == org_id
     ).first()
 
     if not patient:
@@ -550,7 +538,7 @@ def update_patient(
 
     if updated_patient.phone is not None:
         duplicate_phone = db.query(Patient).filter(
-            Patient.doctor_id == current_doctor["doctor_id"],
+            Patient.organization_id == org_id,
             Patient.id != patient_id,
             Patient.phone == updated_patient.phone
         ).first()
@@ -565,7 +553,7 @@ def update_patient(
 
     if updated_patient.email is not None:
         duplicate_email = db.query(Patient).filter(
-            Patient.doctor_id == current_doctor["doctor_id"],
+            Patient.organization_id == org_id,
             Patient.id != patient_id,
             Patient.email == updated_patient.email
         ).first()
@@ -578,8 +566,8 @@ def update_patient(
 
         patient.email = updated_patient.email
 
-    if updated_patient.age is not None:
-        patient.age = updated_patient.age
+    if updated_patient.date_of_birth is not None:
+        patient.date_of_birth = updated_patient.date_of_birth
 
     if updated_patient.gender is not None:
         patient.gender = updated_patient.gender
@@ -602,13 +590,15 @@ def update_patient(
 @router.delete("/{patient_id}")
 def delete_patient(
     patient_id: int,
-    current_doctor: dict = Depends(get_current_doctor),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(require_permission("patient:delete")),
+    db: Session = Depends(get_db),
+    request: Request = None,
 ):
+    org_id = get_organization_id(request)
 
     patient = db.query(Patient).filter(
         Patient.id == patient_id,
-        Patient.doctor_id == current_doctor["doctor_id"]
+        Patient.organization_id == org_id
     ).first()
 
     if not patient:
@@ -619,15 +609,15 @@ def delete_patient(
 
     appointment_count = db.query(Appointment.id).filter(
         Appointment.patient_id == patient_id,
-        Appointment.doctor_id == current_doctor["doctor_id"],
+        Appointment.organization_id == org_id,
     ).count()
     treatment_count = db.query(Treatment.id).filter(
         Treatment.patient_id == patient_id,
-        Treatment.doctor_id == current_doctor["doctor_id"],
+        Treatment.organization_id == org_id,
     ).count()
     bill_count = db.query(Bill.id).filter(
         Bill.patient_id == patient_id,
-        Bill.doctor_id == current_doctor["doctor_id"],
+        Bill.organization_id == org_id,
     ).count()
 
     if appointment_count or treatment_count or bill_count:

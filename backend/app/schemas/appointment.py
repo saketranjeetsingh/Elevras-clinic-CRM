@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 
 from pydantic import BaseModel
 from pydantic import validator
@@ -7,83 +8,50 @@ from app.constants import AppointmentStatus
 from app.constants import normalize_status
 
 
-def _validate_appointment_date(value):
-
-    if value is None:
-        return None
-
-    if not isinstance(value, str) or not value.strip():
-        raise ValueError("appointment_date must be a valid date (YYYY-MM-DD)")
-
-    try:
-        datetime.strptime(value.strip(), "%Y-%m-%d")
-    except ValueError:
-        raise ValueError("appointment_date must be in YYYY-MM-DD format")
-
-    return value.strip()
-
-
-class AppointmentCreate(BaseModel):
-
+class AppointmentBase(BaseModel):
     patient_id: int
-
-    doctor_name: str
-
-    appointment_date: str
-
+    doctor_id: int
+    doctor_name: Optional[str] = None
+    start_at: datetime
+    end_at: datetime
     status: AppointmentStatus
+    notes: Optional[str] = None
 
-    notes: str | None = None
+    @validator("status", pre=True, allow_reuse=True)
+    def _normalize_status(cls, v):
+        return normalize_status(v)
 
-    _normalize_status = validator(
-        "status",
-        pre=True,
-        allow_reuse=True,
-    )(normalize_status)
 
-    _validate_date = validator(
-        "appointment_date",
-        allow_reuse=True,
-    )(_validate_appointment_date)
+class AppointmentCreate(AppointmentBase):
+    pass
 
 
 class AppointmentUpdate(BaseModel):
+    patient_id: Optional[int] = None
+    doctor_id: Optional[int] = None
+    doctor_name: Optional[str] = None
+    start_at: Optional[datetime] = None
+    end_at: Optional[datetime] = None
+    status: Optional[AppointmentStatus] = None
+    notes: Optional[str] = None
 
-    patient_id: int | None = None
-
-    doctor_name: str | None = None
-
-    appointment_date: str | None = None
-
-    status: AppointmentStatus | None = None
-
-    notes: str | None = None
-
-    _normalize_status = validator(
-        "status",
-        pre=True,
-        allow_reuse=True,
-    )(normalize_status)
-
-    _validate_date = validator(
-        "appointment_date",
-        allow_reuse=True,
-    )(_validate_appointment_date)
+    @validator("status", pre=True, allow_reuse=True)
+    def _normalize_status(cls, v):
+        return normalize_status(v)
 
 
 class AppointmentResponse(BaseModel):
-
     id: int
-
+    organization_id: int
     patient_id: int
-
-    doctor_name: str
-
-    appointment_date: str
-
+    doctor_id: int
+    doctor_name: Optional[str] = None
+    start_at: datetime
+    end_at: datetime
     status: str
-
-    notes: str | None = None
+    notes: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
 
     class Config:
         orm_mode = True

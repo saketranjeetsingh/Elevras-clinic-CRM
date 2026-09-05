@@ -1,16 +1,21 @@
 from fastapi import APIRouter
 from fastapi import Depends
+from fastapi import Request
 
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from app.database import SessionLocal
-from app.dependencies import get_current_doctor
+from app.dependencies import get_db
+from app.dependencies import get_current_user_with_org
+from app.dependencies import get_organization_id
+from app.dependencies import require_permission
 
 from app.models.patient import Patient
 from app.models.appointment import Appointment
 from app.models.treatment import Treatment
 from app.models.bill import Bill
+from app.models.user import User
 
 
 router = APIRouter(
@@ -19,48 +24,37 @@ router = APIRouter(
 )
 
 
-def get_db():
-
-    db = SessionLocal()
-
-    try:
-        yield db
-
-    finally:
-        db.close()
-
-
 @router.get("/stats")
 def get_dashboard_stats(
-    current_doctor: dict = Depends(get_current_doctor),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(require_permission("dashboard:view")),
+    db: Session = Depends(get_db),
+    request: Request = None,
 ):
-
-    doctor_id = current_doctor["doctor_id"]
+    org_id = get_organization_id(request)
 
     total_patients = db.query(Patient).filter(
-        Patient.doctor_id == doctor_id
+        Patient.organization_id == org_id
     ).count()
 
     total_appointments = db.query(Appointment).filter(
-        Appointment.doctor_id == doctor_id
+        Appointment.organization_id == org_id
     ).count()
 
     total_treatments = db.query(Treatment).filter(
-        Treatment.doctor_id == doctor_id
+        Treatment.organization_id == org_id
     ).count()
 
     total_bills = db.query(Bill).filter(
-        Bill.doctor_id == doctor_id
+        Bill.organization_id == org_id
     ).count()
 
     paid_bills = db.query(Bill).filter(
-        Bill.doctor_id == doctor_id,
+        Bill.organization_id == org_id,
         func.lower(Bill.payment_status) == "paid"
     ).all()
 
     pending_bills = db.query(Bill).filter(
-        Bill.doctor_id == doctor_id,
+        Bill.organization_id == org_id,
         func.lower(Bill.payment_status) != "paid"
     ).all()
 

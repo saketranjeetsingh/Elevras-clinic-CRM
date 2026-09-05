@@ -13,16 +13,24 @@ class Patient(Base):
 
     __tablename__ = "patients"
     __table_args__ = (
-        UniqueConstraint("doctor_id", "phone", name="uq_patient_doctor_phone"),
-        UniqueConstraint("doctor_id", "email", name="uq_patient_doctor_email"),
+        UniqueConstraint("organization_id", "phone", name="uq_patient_org_phone"),
+        UniqueConstraint("organization_id", "email", name="uq_patient_org_email"),
     )
 
     id = Column(Integer, primary_key=True, index=True)
 
+    organization_id = Column(
+        Integer,
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
     doctor_id = Column(
         Integer,
-        ForeignKey("doctors.id", ondelete="CASCADE"),
-        nullable=False,
+        ForeignKey("doctor_profiles.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
 
     name = Column(String, nullable=False)
@@ -31,7 +39,7 @@ class Patient(Base):
 
     email = Column(String)
 
-    age = Column(Integer)
+    date_of_birth = Column(DateTime(timezone=True), nullable=True)
 
     gender = Column(String)
 

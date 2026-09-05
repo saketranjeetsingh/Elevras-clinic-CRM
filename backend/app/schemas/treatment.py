@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 
 from pydantic import BaseModel
 from pydantic import Field
@@ -8,63 +9,50 @@ from app.constants import TreatmentStatus
 from app.constants import normalize_status
 
 
-class TreatmentCreate(BaseModel):
-
+class TreatmentBase(BaseModel):
     patient_id: int
-
+    doctor_id: int
     treatment_name: str
-
     cost: int = Field(ge=0, le=100000000)
-
     status: TreatmentStatus
+    notes: Optional[str] = None
+    treatment_date: Optional[datetime] = None
 
-    notes: str | None = None
+    @validator("status", pre=True, allow_reuse=True)
+    def _normalize_status(cls, v):
+        return normalize_status(v)
 
-    treatment_date: datetime | None = None
 
-    _normalize_status = validator(
-        "status",
-        pre=True,
-        allow_reuse=True,
-    )(normalize_status)
+class TreatmentCreate(TreatmentBase):
+    pass
 
 
 class TreatmentUpdate(BaseModel):
+    patient_id: Optional[int] = None
+    doctor_id: Optional[int] = None
+    treatment_name: Optional[str] = None
+    cost: Optional[int] = Field(None, ge=0, le=100000000)
+    status: Optional[TreatmentStatus] = None
+    notes: Optional[str] = None
+    treatment_date: Optional[datetime] = None
 
-    patient_id: int | None = None
-
-    treatment_name: str | None = None
-
-    cost: int | None = Field(None, ge=0, le=100000000)
-
-    status: TreatmentStatus | None = None
-
-    notes: str | None = None
-
-    treatment_date: datetime | None = None
-
-    _normalize_status = validator(
-        "status",
-        pre=True,
-        allow_reuse=True,
-    )(normalize_status)
+    @validator("status", pre=True, allow_reuse=True)
+    def _normalize_status(cls, v):
+        return normalize_status(v)
 
 
 class TreatmentResponse(BaseModel):
-
     id: int
-
+    organization_id: int
     patient_id: int
-
+    doctor_id: int
     treatment_name: str
-
     cost: int
-
     status: str
-
-    notes: str | None = None
-
-    treatment_date: datetime | None = None
+    notes: Optional[str] = None
+    treatment_date: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
 
     class Config:
         orm_mode = True

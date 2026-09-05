@@ -21,7 +21,7 @@ def test_signup_is_rate_limited_after_5_attempts(client):
                 "name": f"Rate Limit {attempt}",
                 "email": f"ratelimit{attempt}@example.com",
                 "password": "secret123",
-                "clinic_name": "Clinic",
+                "role_code": "admin",
             },
         )
         assert response.status_code == 200, response.text
@@ -32,7 +32,7 @@ def test_signup_is_rate_limited_after_5_attempts(client):
             "name": "Rate Limit 6",
             "email": "ratelimit6@example.com",
             "password": "secret123",
-            "clinic_name": "Clinic",
+            "role_code": "admin",
         },
     )
     assert response.status_code == 429, response.text

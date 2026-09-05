@@ -1,16 +1,21 @@
 from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import HTTPException
+from fastapi import Request
 
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
 from app.models.appointment import Appointment
+from app.models.patient import Patient
+from app.models.user import User
 from app.schemas.appointment import AppointmentCreate
 from app.schemas.appointment import AppointmentResponse
 from app.schemas.appointment import AppointmentUpdate
-from app.dependencies import get_current_doctor
-from app.dependencies import get_patient_for_current_doctor
+from app.dependencies import get_db
+from app.dependencies import get_current_user_with_org
+from app.dependencies import get_organization_id
+from app.dependencies import require_permission
 
 
 router = APIRouter(
@@ -19,46 +24,40 @@ router = APIRouter(
 )
 
 
-def get_db():
-
-    db = SessionLocal()
-
-    try:
-        yield db
-
-    finally:
-        db.close()
-
-
 @router.post("", response_model=AppointmentResponse)
 @router.post("/", response_model=AppointmentResponse)
 def create_appointment(
     appointment: AppointmentCreate,
-    current_doctor: dict = Depends(
-        get_current_doctor
-    ),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(require_permission("appointment:create")),
+    db: Session = Depends(get_db),
+    request: Request = None,
 ):
+    org_id = get_organization_id(request)
 
-    get_patient_for_current_doctor(
-        appointment.patient_id,
-        current_doctor,
-        db
-    )
+    patient = db.query(Patient).filter(
+        Patient.id == appointment.patient_id,
+        Patient.organization_id == org_id
+    ).first()
+
+    if not patient:
+        raise HTTPException(
+            status_code=404,
+            detail="Patient not found"
+        )
 
     new_appointment = Appointment(
-        doctor_id=current_doctor["doctor_id"],
+        organization_id=org_id,
         patient_id=appointment.patient_id,
+        doctor_id=appointment.doctor_id,
         doctor_name=appointment.doctor_name,
-        appointment_date=appointment.appointment_date,
+        start_at=appointment.start_at,
+        end_at=appointment.end_at,
         status=appointment.status,
         notes=appointment.notes
     )
 
     db.add(new_appointment)
-
     db.commit()
-
     db.refresh(new_appointment)
 
     return new_appointment
@@ -67,15 +66,14 @@ def create_appointment(
 @router.get("", response_model=list[AppointmentResponse])
 @router.get("/", response_model=list[AppointmentResponse])
 def get_appointments(
-    current_doctor: dict = Depends(
-        get_current_doctor
-    ),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(require_permission("appointment:view")),
+    db: Session = Depends(get_db),
+    request: Request = None,
 ):
+    org_id = get_organization_id(request)
 
     return db.query(Appointment).filter(
-        Appointment.doctor_id ==
-        current_doctor["doctor_id"]
+        Appointment.organization_id == org_id
     ).all()
 
 
@@ -83,16 +81,15 @@ def get_appointments(
 def update_appointment(
     appointment_id: int,
     appointment_data: AppointmentUpdate,
-    current_doctor: dict = Depends(
-        get_current_doctor
-    ),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(require_permission("appointment:edit")),
+    db: Session = Depends(get_db),
+    request: Request = None,
 ):
+    org_id = get_organization_id(request)
 
     appointment = db.query(Appointment).filter(
         Appointment.id == appointment_id,
-        Appointment.doctor_id ==
-        current_doctor["doctor_id"]
+        Appointment.organization_id == org_id
     ).first()
 
     if not appointment:
@@ -102,14 +99,28 @@ def update_appointment(
         )
 
     if appointment_data.patient_id is not None:
-        get_patient_for_current_doctor(appointment_data.patient_id, current_doctor, db)
+        patient = db.query(Patient).filter(
+            Patient.id == appointment_data.patient_id,
+            Patient.organization_id == org_id
+        ).first()
+        if not patient:
+            raise HTTPException(
+                status_code=404,
+                detail="Patient not found"
+            )
         appointment.patient_id = appointment_data.patient_id
+
+    if appointment_data.doctor_id is not None:
+        appointment.doctor_id = appointment_data.doctor_id
 
     if appointment_data.doctor_name is not None:
         appointment.doctor_name = appointment_data.doctor_name
 
-    if appointment_data.appointment_date is not None:
-        appointment.appointment_date = appointment_data.appointment_date
+    if appointment_data.start_at is not None:
+        appointment.start_at = appointment_data.start_at
+
+    if appointment_data.end_at is not None:
+        appointment.end_at = appointment_data.end_at
 
     if appointment_data.status is not None:
         appointment.status = appointment_data.status
@@ -118,7 +129,6 @@ def update_appointment(
         appointment.notes = appointment_data.notes
 
     db.commit()
-
     db.refresh(appointment)
 
     return appointment
@@ -127,12 +137,15 @@ def update_appointment(
 @router.delete("/{appointment_id}")
 def delete_appointment(
     appointment_id: int,
-    current_doctor: dict = Depends(get_current_doctor),
+    current_user: User = Depends(require_permission("appointment:delete")),
     db: Session = Depends(get_db),
+    request: Request = None,
 ):
+    org_id = get_organization_id(request)
+
     appointment = db.query(Appointment).filter(
         Appointment.id == appointment_id,
-        Appointment.doctor_id == current_doctor["doctor_id"],
+        Appointment.organization_id == org_id,
     ).first()
 
     if not appointment:

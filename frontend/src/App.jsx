@@ -11,6 +11,7 @@ import Appointments from "./pages/Appointments";
 import Treatments from "./pages/Treatments";
 import Bills from "./pages/Bills";
 import Import from "./pages/Import";
+import Settings from "./pages/Settings";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
@@ -81,6 +82,15 @@ function App() {
                     element={
                         <ProtectedRoute>
                             <Bills />
+                        </ProtectedRoute>
+                    }
+                />
+
+                <Route
+                    path="/settings"
+                    element={
+                        <ProtectedRoute>
+                            <Settings />
                         </ProtectedRoute>
                     }
                 />

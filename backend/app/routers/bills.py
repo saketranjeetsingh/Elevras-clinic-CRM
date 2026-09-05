@@ -1,17 +1,23 @@
 from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import HTTPException
+from fastapi import Request
 
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
 from app.models.bill import Bill
+from app.models.patient import Patient
+from app.models.user import User
+
 from app.schemas.bill import BillCreate
 from app.schemas.bill import BillResponse
 from app.schemas.bill import BillUpdate
 
-from app.dependencies import get_current_doctor
-from app.dependencies import get_patient_for_current_doctor
+from app.dependencies import get_db
+from app.dependencies import get_current_user_with_org
+from app.dependencies import get_organization_id
+from app.dependencies import require_permission
 
 
 router = APIRouter(
@@ -20,45 +26,38 @@ router = APIRouter(
 )
 
 
-def get_db():
-
-    db = SessionLocal()
-
-    try:
-        yield db
-
-    finally:
-        db.close()
-
-
 @router.post("", response_model=BillResponse)
 @router.post("/", response_model=BillResponse)
 def create_bill(
     bill: BillCreate,
-    current_doctor: dict = Depends(
-        get_current_doctor
-    ),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(require_permission("bill:create")),
+    db: Session = Depends(get_db),
+    request: Request = None,
 ):
+    org_id = get_organization_id(request)
 
-    get_patient_for_current_doctor(
-        bill.patient_id,
-        current_doctor,
-        db
-    )
+    patient = db.query(Patient).filter(
+        Patient.id == bill.patient_id,
+        Patient.organization_id == org_id
+    ).first()
+
+    if not patient:
+        raise HTTPException(
+            status_code=404,
+            detail="Patient not found"
+        )
 
     new_bill = Bill(
-        doctor_id=current_doctor["doctor_id"],
+        organization_id=org_id,
         patient_id=bill.patient_id,
+        doctor_id=bill.doctor_id,
         amount=bill.amount,
         payment_status=bill.payment_status,
         payment_method=bill.payment_method
     )
 
     db.add(new_bill)
-
     db.commit()
-
     db.refresh(new_bill)
 
     return new_bill
@@ -67,15 +66,14 @@ def create_bill(
 @router.get("", response_model=list[BillResponse])
 @router.get("/", response_model=list[BillResponse])
 def get_bills(
-    current_doctor: dict = Depends(
-        get_current_doctor
-    ),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(require_permission("bill:view")),
+    db: Session = Depends(get_db),
+    request: Request = None,
 ):
+    org_id = get_organization_id(request)
 
     return db.query(Bill).filter(
-        Bill.doctor_id ==
-        current_doctor["doctor_id"]
+        Bill.organization_id == org_id
     ).all()
 
 
@@ -83,15 +81,15 @@ def get_bills(
 def update_bill(
     bill_id: int,
     bill_data: BillUpdate,
-    current_doctor: dict = Depends(
-        get_current_doctor
-    ),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(require_permission("bill:edit")),
+    db: Session = Depends(get_db),
+    request: Request = None,
 ):
+    org_id = get_organization_id(request)
 
     bill = db.query(Bill).filter(
         Bill.id == bill_id,
-        Bill.doctor_id == current_doctor["doctor_id"]
+        Bill.organization_id == org_id
     ).first()
 
     if not bill:
@@ -101,8 +99,19 @@ def update_bill(
         )
 
     if bill_data.patient_id is not None:
-        get_patient_for_current_doctor(bill_data.patient_id, current_doctor, db)
+        patient = db.query(Patient).filter(
+            Patient.id == bill_data.patient_id,
+            Patient.organization_id == org_id
+        ).first()
+        if not patient:
+            raise HTTPException(
+                status_code=404,
+                detail="Patient not found"
+            )
         bill.patient_id = bill_data.patient_id
+
+    if bill_data.doctor_id is not None:
+        bill.doctor_id = bill_data.doctor_id
 
     if bill_data.amount is not None:
         bill.amount = bill_data.amount
@@ -114,7 +123,6 @@ def update_bill(
         bill.payment_method = bill_data.payment_method
 
     db.commit()
-
     db.refresh(bill)
 
     return bill
@@ -123,12 +131,15 @@ def update_bill(
 @router.delete("/{bill_id}")
 def delete_bill(
     bill_id: int,
-    current_doctor: dict = Depends(get_current_doctor),
+    current_user: User = Depends(require_permission("bill:delete")),
     db: Session = Depends(get_db),
+    request: Request = None,
 ):
+    org_id = get_organization_id(request)
+
     bill = db.query(Bill).filter(
         Bill.id == bill_id,
-        Bill.doctor_id == current_doctor["doctor_id"],
+        Bill.organization_id == org_id,
     ).first()
 
     if not bill:

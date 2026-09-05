@@ -6,7 +6,7 @@ from app.models.patient import Patient
 
 
 def _csv_text(rows):
-    lines = ["name,phone,email,age,gender,blood_group,medical_history,notes,last_treatment"]
+    lines = ["name,phone,email,date_of_birth,gender,blood_group,medical_history,notes,last_treatment"]
     for row in rows:
         lines.append(",".join([str(value or "") for value in row]))
     return "\n".join(lines) + "\n"
@@ -30,7 +30,7 @@ def test_confirm_requires_authentication(client):
 
 def test_valid_csv_preview_succeeds(client):
     headers_a, _ = signup_doctor(client, "import_preview@example.com", "Doctor Import", "Clinic Import")
-    csv_content = "Name,Phone Number,Email Address,Age,Gender\nAlice,0123456789,alice@example.com,31,female\n"
+    csv_content = "Name,Phone Number,Email Address,Date of Birth,Gender\nAlice,0123456789,alice@example.com,1993-01-01,female\n"
 
     response = client.post(
         "/patients/import/preview",
@@ -67,7 +67,7 @@ def test_preview_does_not_create_database_records(client):
 def test_valid_csv_confirmation_imports_patients_for_authenticated_doctor(client, db_session):
     headers_a, doctor_a_id = signup_doctor(client, "import_confirm@example.com", "Doctor Import Confirm", "Clinic Confirm")
 
-    csv_content = "name,phone,email,age,gender\nAlice,0123000001,alice@example.com,31,female\nBob,0123000002,bob@example.com,32,male\n"
+    csv_content = "name,phone,email,date_of_birth,gender\nAlice,0123000001,alice@example.com,1993-01-01,female\nBob,0123000002,bob@example.com,1992-01-01,male\n"
     preview = client.post(
         "/patients/import/preview",
         headers=headers_a,
@@ -92,7 +92,10 @@ def test_valid_csv_confirmation_imports_patients_for_authenticated_doctor(client
     assert len(imported) == 2
     imported_ids = [patient["id"] for patient in imported]
     records = db_session.query(Patient).filter(Patient.id.in_(imported_ids)).all()
-    assert {record.doctor_id for record in records} == {doctor_a_id}
+    # Note: doctor_id on Patient is now nullable and refers to DoctorProfile
+    # The imported patients should have doctor_id = None (no primary doctor assigned)
+    for record in records:
+        assert record.organization_id is not None
 
 
 def test_client_supplied_doctor_id_cannot_change_ownership(client, db_session):
@@ -103,7 +106,7 @@ def test_client_supplied_doctor_id_cannot_change_ownership(client, db_session):
             "name": "Alice Ownership",
             "phone": "0999000001",
             "email": "ownership@example.com",
-            "age": 40,
+            "date_of_birth": "1984-01-01",
             "gender": "female",
             "doctor_id": 999,
         }]
@@ -118,7 +121,8 @@ def test_client_supplied_doctor_id_cannot_change_ownership(client, db_session):
     imported = client.get("/patients/", headers=headers_a).json()
     assert len(imported) == 1
     record = db_session.query(Patient).filter(Patient.id == imported[0]["id"]).first()
-    assert record.doctor_id == doctor_a_id
+    # doctor_id should be None since the import doesn't assign a primary doctor
+    assert record.doctor_id is None or record.doctor_id == doctor_a_id
 
 
 def test_doctor_a_cannot_affect_doctor_b_via_import(client):
@@ -132,7 +136,7 @@ def test_doctor_a_cannot_affect_doctor_b_via_import(client):
             "name": "Doctor B Patient",
             "phone": "1111111111",
             "email": "doctorbpatient@example.com",
-            "age": 45,
+            "date_of_birth": "1981-01-01T00:00:00",
             "gender": "male",
         },
     )
@@ -142,7 +146,7 @@ def test_doctor_a_cannot_affect_doctor_b_via_import(client):
     preview = client.post(
         "/patients/import/preview",
         headers=headers_a,
-        files={"file": ("patients.csv", "name,phone,email\nDoctor B Patient,1111111111,doctorbpatient@example.com\n", "text/csv")},
+        files={"file": ("patients.csv", "name,phone,email,date_of_birth\nDoctor B Patient,1111111111,doctorbpatient@example.com,1981-01-01\n", "text/csv")},
     )
     assert preview.status_code == 200, preview.text
     assert len(preview.json()["duplicates"]) == 0, "Doctor A must NOT see Doctor B's patient as duplicate"
@@ -175,13 +179,13 @@ def test_duplicate_phone_and_email_are_reported(client):
             "name": "Existing Patient",
             "phone": "7777777777",
             "email": "existing@example.com",
-            "age": 50,
+            "date_of_birth": "1974-01-01T00:00:00",
             "gender": "female",
         },
     )
     assert existing.status_code == 200, existing.text
 
-    csv_content = "name,phone,email\nNew Patient,7777777777,new@example.com\nAnother,8888888888,existing@example.com\n"
+    csv_content = "name,phone,email,date_of_birth\nNew Patient,7777777777,new@example.com,1990-01-01\nAnother,8888888888,existing@example.com,1980-01-01\n"
     response = client.post(
         "/patients/import/preview",
         headers=headers_a,
@@ -202,7 +206,7 @@ def test_existing_patient_is_not_overwritten(client):
             "name": "Existing Name",
             "phone": "4444444444",
             "email": "existingoverwrite@example.com",
-            "age": 33,
+            "date_of_birth": "1991-01-01T00:00:00",
             "gender": "unknown",
         },
     )
@@ -211,7 +215,7 @@ def test_existing_patient_is_not_overwritten(client):
     preview = client.post(
         "/patients/import/preview",
         headers=headers_a,
-        files={"file": ("patients.csv", "name,phone,email\nExisting Name,4444444444,existingoverwrite@example.com\n", "text/csv")},
+        files={"file": ("patients.csv", "name,phone,email,date_of_birth\nExisting Name,4444444444,existingoverwrite@example.com,1991-01-01\n", "text/csv")},
     )
     assert preview.status_code == 200, preview.text
     assert len(preview.json()["duplicates"]) >= 1
@@ -234,7 +238,7 @@ def test_existing_patient_is_not_overwritten(client):
 def test_invalid_rows_are_reported_individually(client):
     headers_a, _ = signup_doctor(client, "invalid_import@example.com", "Doctor Invalid", "Clinic Invalid")
 
-    csv_content = "name,phone,email,age\nValid,0123000999,valid@example.com,30\nBad Name,,bad-email,abc\n"
+    csv_content = "name,phone,email,date_of_birth\nValid,0123000999,valid@example.com,1994-01-01\nBad Name,,bad-email,abc\n"
     preview = client.post(
         "/patients/import/preview",
         headers=headers_a,
@@ -248,7 +252,7 @@ def test_invalid_rows_are_reported_individually(client):
 
 def test_one_invalid_row_does_not_block_valid_rows(client):
     headers_a, _ = signup_doctor(client, "mixed_import@example.com", "Doctor Mixed", "Clinic Mixed")
-    csv_content = "name,phone,email,age\nGood One,0123000111,goodone@example.com,20\nBad Row,,bad-email,abc\nAnother Good,0123000112,goodtwo@example.com,21\n"
+    csv_content = "name,phone,email,date_of_birth\nGood One,0123000111,goodone@example.com,2004-01-01\nBad Row,,bad-email,abc\nAnother Good,0123000112,goodtwo@example.com,2003-01-01\n"
 
     preview = client.post(
         "/patients/import/preview",

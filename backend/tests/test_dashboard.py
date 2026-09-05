@@ -12,7 +12,7 @@ def test_dashboard_statistics_are_scoped_to_current_doctor(client):
             "name": "Dashboard Patient A",
             "phone": "1111111112",
             "email": "dashpatienta@example.com",
-            "age": 31,
+            "date_of_birth": "1995-01-01T00:00:00Z",
             "gender": "female",
         },
     )
@@ -23,7 +23,7 @@ def test_dashboard_statistics_are_scoped_to_current_doctor(client):
             "name": "Dashboard Patient B",
             "phone": "1111111113",
             "email": "dashpatientb@example.com",
-            "age": 32,
+            "date_of_birth": "1994-01-01T00:00:00Z",
             "gender": "male",
         },
     )
@@ -35,8 +35,10 @@ def test_dashboard_statistics_are_scoped_to_current_doctor(client):
         headers=headers_a,
         json={
             "patient_id": patient_a.json()["id"],
+            "doctor_id": doctor_a_id,
             "doctor_name": "Doctor A",
-            "appointment_date": "2026-08-17",
+            "start_at": "2026-08-17T09:00:00Z",
+            "end_at": "2026-08-17T09:30:00Z",
             "status": "completed",
         },
     )
@@ -45,8 +47,10 @@ def test_dashboard_statistics_are_scoped_to_current_doctor(client):
         headers=headers_b,
         json={
             "patient_id": patient_b.json()["id"],
+            "doctor_id": doctor_b_id,
             "doctor_name": "Doctor B",
-            "appointment_date": "2026-08-18",
+            "start_at": "2026-08-18T09:00:00Z",
+            "end_at": "2026-08-18T09:30:00Z",
             "status": "Scheduled",
         },
     )
@@ -56,6 +60,7 @@ def test_dashboard_statistics_are_scoped_to_current_doctor(client):
         headers=headers_a,
         json={
             "patient_id": patient_a.json()["id"],
+            "doctor_id": doctor_a_id,
             "treatment_name": "A Treatment",
             "cost": 150,
             "status": "done",
@@ -67,6 +72,7 @@ def test_dashboard_statistics_are_scoped_to_current_doctor(client):
         headers=headers_b,
         json={
             "patient_id": patient_b.json()["id"],
+            "doctor_id": doctor_b_id,
             "treatment_name": "B Treatment",
             "cost": 300,
             "status": "done",
@@ -79,6 +85,7 @@ def test_dashboard_statistics_are_scoped_to_current_doctor(client):
         headers=headers_a,
         json={
             "patient_id": patient_a.json()["id"],
+            "doctor_id": doctor_a_id,
             "amount": 250,
             "payment_status": "paid",
             "payment_method": "card",
@@ -89,6 +96,7 @@ def test_dashboard_statistics_are_scoped_to_current_doctor(client):
         headers=headers_b,
         json={
             "patient_id": patient_b.json()["id"],
+            "doctor_id": doctor_b_id,
             "amount": 400,
             "payment_status": "pending",
             "payment_method": "cash",

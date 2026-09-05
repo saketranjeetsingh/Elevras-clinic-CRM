@@ -4,7 +4,22 @@ const apiBaseUrl = (import.meta.env.VITE_API_URL || "http://localhost:8000").rep
 
 const api = axios.create({
     baseURL: apiBaseUrl,
+    withCredentials: true, // Important for refresh token cookie
 });
+
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+    failedQueue.forEach((prom) => {
+        if (error) {
+            prom.reject(error);
+        } else {
+            prom.resolve(token);
+        }
+    });
+    failedQueue = [];
+};
 
 function extractValidationDetail(data) {
     const detail = data?.detail ?? data?.message;
@@ -43,7 +58,7 @@ function normalizeError(error) {
     const lowered = String(serverDetail || "").toLowerCase();
 
     if (status === 401 || status === 403 || lowered.includes("unauthorized") || lowered.includes("invalid credentials")) {
-        return { detail: "Incorrect email or password.", message: "Incorrect email or password." };
+        return { detail: "Session expired. Please log in again.", message: "Session expired. Please log in again." };
     }
 
     if (status === 422 || lowered.includes("validation failed")) {
@@ -90,7 +105,44 @@ api.interceptors.request.use(
 
 api.interceptors.response.use(
     (response) => response,
-    (error) => Promise.reject(normalizeError(error))
+    async (error) => {
+        const originalRequest = error.config;
+
+        if (error.response?.status === 401 && !originalRequest._retry) {
+            if (isRefreshing) {
+                return new Promise((resolve, reject) => {
+                    failedQueue.push({ resolve, reject });
+                }).then((token) => {
+                    originalRequest.headers.Authorization = `Bearer ${token}`;
+                    return api(originalRequest);
+                }).catch((err) => {
+                    return Promise.reject(err);
+                });
+            }
+
+            originalRequest._retry = true;
+            isRefreshing = true;
+
+            try {
+                const res = await api.post("/auth/refresh");
+                const newToken = res.data.access_token;
+                localStorage.setItem("token", newToken);
+
+                processQueue(null, newToken);
+                originalRequest.headers.Authorization = `Bearer ${newToken}`;
+                return api(originalRequest);
+            } catch (refreshError) {
+                processQueue(refreshError, null);
+                localStorage.removeItem("token");
+                window.location.href = "/";
+                return Promise.reject(refreshError);
+            } finally {
+                isRefreshing = false;
+            }
+        }
+
+        return Promise.reject(normalizeError(error))
+    }
 );
 
 // Small wrappers for consistent error handling in pages

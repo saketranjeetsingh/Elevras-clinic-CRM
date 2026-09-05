@@ -1,4 +1,5 @@
 import os
+import secrets
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
@@ -10,7 +11,6 @@ from dotenv import load_dotenv
 from passlib.context import CryptContext
 
 
-#Load environment (backend/.env) and read SECRET_KEY
 base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 dotenv_path = os.path.join(base_dir, ".env")
 load_dotenv(dotenv_path)
@@ -32,7 +32,8 @@ if len(SECRET_KEY.strip()) < 32 or SECRET_KEY.strip().lower() in WEAK_SECRET_KEY
 
 ALGORITHM = "HS256"
 
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
+ACCESS_TOKEN_EXPIRE_MINUTES = 15
+REFRESH_TOKEN_EXPIRE_DAYS = 30
 
 
 pwd_context = CryptContext(
@@ -42,7 +43,6 @@ pwd_context = CryptContext(
 
 
 def hash_password(password: str):
-
     return pwd_context.hash(password)
 
 
@@ -50,7 +50,6 @@ def verify_password(
     plain_password: str,
     hashed_password: str
 ):
-
     return pwd_context.verify(
         plain_password,
         hashed_password
@@ -58,7 +57,6 @@ def verify_password(
 
 
 def create_access_token(data: dict):
-
     to_encode = data.copy()
 
     expire = datetime.now(timezone.utc) + timedelta(
@@ -66,7 +64,7 @@ def create_access_token(data: dict):
     )
 
     to_encode.update(
-        {"exp": expire}
+        {"exp": expire, "type": "access"}
     )
 
     return jwt.encode(
@@ -76,18 +74,36 @@ def create_access_token(data: dict):
     )
 
 
+def create_refresh_token():
+    """Generate a secure random refresh token."""
+    return secrets.token_urlsafe(32)
+
+
+def hash_refresh_token(token: str) -> str:
+    """Hash a refresh token for storage."""
+    return pwd_context.hash(token)
+
+
+def verify_refresh_token(plain_token: str, hashed_token: str) -> bool:
+    """Verify a refresh token against its hash."""
+    return pwd_context.verify(plain_token, hashed_token)
+
+
 def verify_token(token: str):
-
     try:
-
         payload = jwt.decode(
             token,
             SECRET_KEY,
             algorithms=[ALGORITHM]
         )
-
         return payload
-
     except JWTError:
+        return None
 
+
+def decode_token_unsafe(token: str):
+    """Decode token without verification (for debugging)."""
+    try:
+        return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], options={"verify_signature": False})
+    except JWTError:
         return None
