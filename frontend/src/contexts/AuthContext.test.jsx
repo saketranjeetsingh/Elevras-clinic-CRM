@@ -9,13 +9,14 @@ vi.mock("../services/api", () => ({
     default: apiMock,
 }));
 
-import { AuthProvider, AuthContext } from "./AuthContext";
+import { AuthProvider } from "./AuthProvider";
+import { AuthContext } from "./AuthContext";
 
 function TestConsumer() {
     const { user, login, logout } = useContext(AuthContext);
     return (
         <div>
-            <div data-testid="user">{user ? user.doctor_name : "none"}</div>
+            <div data-testid="user">{user ? user.name : "none"}</div>
             <button onClick={() => login("token-abc").catch(() => {})}>login</button>
             <button onClick={logout}>logout</button>
         </div>
@@ -29,7 +30,19 @@ describe("AuthContext", () => {
     });
 
     it("logs in by storing the token and fetching the profile", async () => {
-        apiMock.get.mockResolvedValue({ data: { doctor_name: "Dr. Alice", clinic_name: "Clinic A" } });
+        apiMock.get.mockResolvedValue({ 
+            data: { 
+                id: 1,
+                name: "Dr. Alice", 
+                email: "alice@example.com",
+                is_active: true,
+                organization_id: 1,
+                roles: ["admin"],
+                permissions: ["patient:view"],
+                organizations: [1],
+                doctor_profile_id: 1
+            } 
+        });
         const user = userEvent.setup();
 
         render(
@@ -44,6 +57,7 @@ describe("AuthContext", () => {
             expect(screen.getByTestId("user")).toHaveTextContent("Dr. Alice");
         });
         expect(localStorage.getItem("token")).toBe("token-abc");
+        expect(localStorage.getItem("organization_id")).toBe("1");
         expect(apiMock.get).toHaveBeenCalledWith("/auth/me");
     });
 
@@ -63,11 +77,25 @@ describe("AuthContext", () => {
             expect(screen.getByTestId("user")).toHaveTextContent("none");
         });
         expect(localStorage.getItem("token")).toBeNull();
+        expect(localStorage.getItem("organization_id")).toBeNull();
     });
 
     it("restores the user from a stored token on mount", async () => {
         localStorage.setItem("token", "stored-token");
-        apiMock.get.mockResolvedValue({ data: { name: "Dr. Bob", clinic_name: "Clinic B" } });
+        localStorage.setItem("organization_id", "2");
+        apiMock.get.mockResolvedValue({ 
+            data: { 
+                id: 2,
+                name: "Dr. Bob", 
+                email: "bob@example.com",
+                is_active: true,
+                organization_id: 2,
+                roles: ["doctor"],
+                permissions: ["patient:view"],
+                organizations: [2],
+                doctor_profile_id: 2
+            } 
+        });
 
         render(
             <AuthProvider>
@@ -83,7 +111,20 @@ describe("AuthContext", () => {
 
     it("logs out by clearing the token and user", async () => {
         localStorage.setItem("token", "token-abc");
-        apiMock.get.mockResolvedValue({ data: { doctor_name: "Dr. Alice" } });
+        localStorage.setItem("organization_id", "1");
+        apiMock.get.mockResolvedValue({ 
+            data: { 
+                id: 1,
+                name: "Dr. Alice", 
+                email: "alice@example.com",
+                is_active: true,
+                organization_id: 1,
+                roles: ["admin"],
+                permissions: ["patient:view"],
+                organizations: [1],
+                doctor_profile_id: 1
+            } 
+        });
         const user = userEvent.setup();
 
         render(
@@ -100,5 +141,6 @@ describe("AuthContext", () => {
 
         expect(screen.getByTestId("user")).toHaveTextContent("none");
         expect(localStorage.getItem("token")).toBeNull();
+        expect(localStorage.getItem("organization_id")).toBeNull();
     });
 });

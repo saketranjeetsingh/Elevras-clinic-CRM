@@ -30,15 +30,26 @@ describe("api client", () => {
 
     it("attaches the auth header when a token exists", () => {
         localStorage.setItem("token", "token-123");
+        localStorage.setItem("organization_id", "1");
         const config = { headers: {} };
         requestInterceptor(config);
         expect(config.headers.Authorization).toBe("Bearer token-123");
+        expect(config.headers["X-Organization-ID"]).toBe("1");
     });
 
     it("does not attach an auth header without a token", () => {
         const config = { headers: {} };
         requestInterceptor(config);
         expect(config.headers.Authorization).toBeUndefined();
+        expect(config.headers["X-Organization-ID"]).toBeUndefined();
+    });
+
+    it("attaches X-Organization-ID when org_id exists but no token", () => {
+        localStorage.setItem("organization_id", "2");
+        const config = { headers: {} };
+        requestInterceptor(config);
+        expect(config.headers.Authorization).toBeUndefined();
+        expect(config.headers["X-Organization-ID"]).toBe("2");
     });
 
     it("get() resolves with response data", async () => {
@@ -76,11 +87,22 @@ describe("api client", () => {
         await expect(del("/patients/1")).resolves.toEqual({ message: "Deleted" });
     });
 
-    it("normalizes a 401 error", async () => {
-        const error = { response: { status: 401, data: { detail: "Invalid token" } } };
+    it("normalizes a 401 error after refresh fails", async () => {
+        // Mock refresh to fail
+        mockInstance.post.mockImplementation((url) => {
+            if (url === "/auth/refresh") {
+                return Promise.reject({ response: { status: 401, data: { detail: "Invalid refresh token" } } });
+            }
+            return Promise.resolve({ data: {} });
+        });
+
+        const error = { 
+            response: { status: 401, data: { detail: "Invalid credentials" } },
+            config: { _retry: false, headers: {} }
+        };
         await expect(responseErrorInterceptor(error)).rejects.toEqual({
-            detail: "Incorrect email or password.",
-            message: "Incorrect email or password.",
+            detail: "Session expired. Please log in again.",
+            message: "Session expired. Please log in again.",
         });
     });
 
@@ -97,6 +119,7 @@ describe("api client", () => {
                 status: 422,
                 data: { detail: [{ loc: ["body", "phone"], msg: "field required" }] },
             },
+            config: {}
         };
         await expect(responseErrorInterceptor(error)).rejects.toEqual({
             detail: "phone: Field required",

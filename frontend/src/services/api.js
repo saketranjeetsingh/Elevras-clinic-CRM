@@ -137,7 +137,7 @@ api.interceptors.response.use(
                 processQueue(refreshError, null);
                 localStorage.removeItem("token");
                 window.location.href = "/";
-                return Promise.reject(refreshError);
+                return Promise.reject(normalizeError(refreshError));
             } finally {
                 isRefreshing = false;
             }
