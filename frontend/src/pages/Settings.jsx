@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useContext } from "react";
 import { Navigate } from "react-router-dom";
-import { get, post, put, del } from "../services/api";
+import { get, post, put } from "../services/api";
 import AuthContext from "../contexts/AuthContext";
 import ConfirmModal from "../components/ConfirmModal";
 import Icon from "../components/Icon";
